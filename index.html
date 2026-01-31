@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Claw Crane Game - Coin & Ticket System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #111;
+            color: #0ff;
+            font-family: monospace;
+            touch-action: none;
+            /* Prevent scrolling on mobile */
+        }
+
+        #score,
+        #credits,
+        #tickets {
+            position: absolute;
+            top: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        #score {
+            left: 10px;
+        }
+
+        #credits {
+            left: 200px;
+        }
+
+        #tickets {
+            left: 350px;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: grid;
+            grid-template-areas:
+                ". forward ."
+                "left drop right"
+                ". backward .";
+            gap: 10px;
+            z-index: 10;
+        }
+
+        button {
+            padding: 15px;
+            font-size: 20px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 68, 68, 0.8);
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button:active {
+            background: rgba(255, 68, 68, 1);
+        }
+
+        #forward {
+            grid-area: forward;
+        }
+
+        #backward {
+            grid-area: backward;
+        }
+
+        #left {
+            grid-area: left;
+        }
+
+        #right {
+            grid-area: right;
+        }
+
+        #drop {
+            grid-area: drop;
+            background: #ffaa00;
+            font-weight: bold;
+        }
+
+        #insertCoin {
+            position: absolute;
+            top: 10px;
+            right: 220px;
+            background: #00aa00;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        #toggleCatalog {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #0088ff;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        #zone_joystick {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 150px;
+            height: 150px;
+            z-index: 10;
+        }
+
+        #catalog {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            width: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+            z-index: 20;
+        }
+
+        #catalog h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .catalog-item {
+            margin: 4px 0;
+            cursor: pointer;
+            padding: 5px;
+            border-bottom: 1px solid #333;
+        }
+
+        .catalog-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .catalog-item span {
+            float: right;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="score">Prizes: 0 Free: 0 Turns: 5</div>
+    <div id="credits">Credits: 0</div>
+    <div id="tickets">Tickets: 0</div>
+
+    <button id="insertCoin">💰 Insert Coin</button>
+    <button id="toggleCatalog">🎁 Catalog</button>
+
+    <div id="zone_joystick"></div>
+
+    <div id="controls">
+        <button id="forward">⬆️</button>
+        <button id="left">⬅️</button>
+        <button id="drop">TEST DROP</button>
+        <button id="right">➡️</button>
+        <button id="backward">⬇️</button>
+    </div>
+
+    <div id="catalog">
+        <h3>Prize Catalog</h3>
+    </div>
+    <canvas></canvas>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import * as CANNON from 'https://cdn.skypack.dev/cannon-es';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // Audio
+        const dropSound = new Audio('assets/sounds/drop.mp3');
+        const grabSound = new Audio('assets/sounds/grab.mp3');
+        const chuteSound = new Audio('assets/sounds/chute.mp3');
+
+        // UI Elements
+        const scoreEl = document.getElementById('score');
+        const creditsEl = document.getElementById('credits');
+        const ticketsEl = document.getElementById('tickets');
+        const catalogEl = document.getElementById('catalog');
+        const catalogBtn = document.getElementById('toggleCatalog');
+
+        // Game State
+        let prizeCount = 0, freeTurns = 0, turns = 5, credits = 0, tickets = 0;
+        const catalog = [
+            { name: 'Stuffed Bear', cost: 50 },
+            { name: 'Toy Car', cost: 30 },
+            { name: 'Keychain', cost: 15 }
+        ];
+
+        function updateUI() {
+            scoreEl.innerText = `Prizes: ${prizeCount}  Free: ${freeTurns}  Turns: ${turns}`;
+            creditsEl.innerText = `Credits: ${credits}`;
+            ticketsEl.innerText = `Tickets: ${tickets}`;
+        }
+
+        // Populate catalog
+        catalog.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'catalog-item';
+            div.innerHTML = `${item.name} <span>${item.cost}</span>`;
+            div.onclick = () => {
+                if (tickets >= item.cost) {
+                    tickets -= item.cost;
+                    alert(`Redeemed ${item.name}!`);
+                    updateUI();
+                } else alert('Not enough tickets');
+            };
+            catalogEl.appendChild(div);
+        });
+
+        catalogBtn.onclick = () => catalogEl.style.display = catalogEl.style.display === 'none' ? 'block' : 'none';
+
+        // Coin insertion
+        document.getElementById('insertCoin').onclick = () => { credits++; turns++; updateUI(); };
+
+        // Three.js Setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 7, 12);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enablePan = false;
+        controls.minDistance = 8;
+        controls.maxDistance = 20;
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0x555555));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+        const spot = new THREE.SpotLight(0xffeecc, 1.5, 30, Math.PI / 6, 0.3);
+        spot.position.set(0, 15, 0);
+        spot.target.position.set(0, 0, 0);
+        scene.add(spot, spot.target);
+
+        // Physics
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+
+        // Machine
+        const machine = new THREE.Group();
+        scene.add(machine);
+        const baseMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.3, roughness: 0.7 });
+        machine.add(new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 8), baseMat));
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 });
+        [[-4, 0], [4, 0], [0, -4], [0, 4]].forEach(([x, z]) => {
+            const geo = new THREE.BoxGeometry(x === 0 ? 8 : 0.2, 8, z === 0 ? 8 : 0.2);
+            const mesh = new THREE.Mesh(geo, glassMat);
+            mesh.position.set(x, 4, z);
+            machine.add(mesh);
+        });
+        const top = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 8), baseMat);
+        top.position.y = 8;
+        machine.add(top);
+
+        // LEDs
+        const ledMat = new THREE.MeshStandardMaterial({ emissive: 0x00ffaa, emissiveIntensity: 1.5, color: 0x003300 });
+        const ledGeo = new THREE.CylinderGeometry(0.1, 0.1, 8, 8);
+        const leds = [[-3.8, 4, -3.8], [3.8, 4, -3.8], [-3.8, 4, 3.8], [3.8, 4, 3.8]].map(pos => {
+            const m = new THREE.Mesh(ledGeo, ledMat);
+            m.position.set(...pos);
+            m.rotation.x = Math.PI / 2;
+            machine.add(m);
+            return m;
+        });
+
+        // Chute
+        const chute = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 2), new THREE.MeshStandardMaterial({ color: 0xffff00 }));
+        chute.position.set(0, 0.25, -3.5);
+        scene.add(chute);
+
+        // Claw
+        const clawGroup = new THREE.Group();
+        clawGroup.position.set(0, 7.5, 0);
+        machine.add(clawGroup);
+
+        // Claw Cord (visual only)
+        const cordGeo = new THREE.CylinderGeometry(0.05, 0.05, 1);
+        const cordMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+        const cord = new THREE.Mesh(cordGeo, cordMat);
+        cord.position.y = 0.5;
+        clawGroup.add(cord);
+
+        const hub = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 }));
+        clawGroup.add(hub);
+        const fingerGeo = new THREE.BoxGeometry(0.2, 2, 0.5);
+        const fingerMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.6, roughness: 0.4 });
+        const fingers = [];
+        for (let i = 0; i < 3; i++) {
+            const f = new THREE.Mesh(fingerGeo, fingerMat);
+            f.position.set(0, -1, 0);
+            f.rotation.y = i * 2 * Math.PI / 3;
+            f.userData.open = Math.PI / 4;
+            clawGroup.add(f);
+            fingers.push(f);
+        }
+
+        // Balls & Prizes
+        const balls = [];
+        for (let i = 0; i < 30; i++) {
+            const b = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 16, 16),
+                new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 1, 0.5) })
+            );
+            b.position.set((Math.random() - 0.5) * 6, 0.5, (Math.random() - 0.5) * 6);
+            scene.add(b);
+            balls.push(b);
+
+            // TODO: Add Physics Body
+        }
+
+        const loader = new GLTFLoader();
+        const prizes = [];
+        // Updated model list based on directory contents
+        const modelNames = ['donald', 'eric', 'kristen', 'kyle', 'rochelle', 'vickie'];
+
+        modelNames.forEach(name => {
+            // Using relative path assuming index.html is in root and models in models/
+            loader.load(`./models/${name}.glb`, (gltf) => {
+                const m = gltf.scene;
+                // Scale normalization might be needed depending on the models
+                m.scale.set(0.5, 0.5, 0.5);
+                m.position.set((Math.random() - 0.5) * 5, 0.6, (Math.random() - 0.5) * 5);
+                scene.add(m);
+                prizes.push(m);
+                // TODO: Add Physics Body
+            }, undefined, (error) => {
+                console.error(`Error loading ${name}.glb:`, error);
+            });
+        });
+
+        // Game Logic & Controls
+        let dropping = false, dropDir = -0.05, grabbed = null;
+        let clawVelocity = { x: 0, z: 0 };
+        const CLAW_SPEED = 0.05;
+        const LIMIT_X = 3.5;
+        const LIMIT_Z = 3.5;
+
+        // Joystick
+        const joystickManager = nipplejs.create({
+            zone: document.getElementById('zone_joystick'),
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            color: 'red'
+        });
+
+        joystickManager.on('move', (evt, data) => {
+            if (data.vector) {
+                clawVelocity.x = data.vector.x * CLAW_SPEED;
+                clawVelocity.z = -data.vector.y * CLAW_SPEED; // NippleJS Y is up, 3D Z is down/depth
+            }
+        });
+
+        joystickManager.on('end', () => {
+            clawVelocity.x = 0;
+            clawVelocity.z = 0;
+        });
+
+        // Button Controls
+        const btnState = { forward: false, backward: false, left: false, right: false };
+
+        const setupBtn = (id, key, val) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('mousedown', () => btnState[key] = true);
+            btn.addEventListener('mouseup', () => btnState[key] = false);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); btnState[key] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); btnState[key] = false; });
+        };
+
+        setupBtn('forward', 'forward');
+        setupBtn('backward', 'backward');
+        setupBtn('left', 'left');
+        setupBtn('right', 'right');
+
+        document.getElementById('drop').onclick = dropClaw;
+
+        function setFingers(open) {
+            fingers.forEach(f => {
+                const t = open ? f.userData.open : 0;
+                f.rotation.z += (t - f.rotation.z) * 0.2;
+            });
+        }
+
+        function dropClaw() {
+            if (!dropping && (turns > 0 || credits > 0)) {
+                if (credits > 0 && turns === 0) { credits--; turns++; }
+                else if (turns > 0) { turns--; } // Just use a turn
+
+                dropping = true;
+                updateUI();
+                dropSound.play().catch(e => console.log('Audio play failed', e));
+            } else if (turns === 0 && credits === 0) {
+                alert("Insert Coin!");
+            }
+        }
+
+        function tryGrab() {
+            [...balls, ...prizes].forEach(obj => {
+                // Simple distance check for grabbing
+                if (!grabbed && clawGroup.position.distanceTo(obj.position) < 0.75) {
+                    grabbed = obj;
+                    grabSound.play().catch(e => console.log('Audio play failed', e));
+                }
+            });
+        }
+
+        function checkDrop() {
+            if (!grabbed) return;
+            const { x, z } = grabbed.position;
+            // Chute location check
+            if (Math.abs(x) < 1 && Math.abs(z + 3.5) < 1) {
+                chuteSound.play().catch(e => console.log('Audio play failed', e));
+                if (balls.includes(grabbed)) { freeTurns++; turns++; }
+                else { prizeCount++; tickets += 10; }
+                scene.remove(grabbed);
+            }
+            grabbed = null;
+            updateUI();
+        }
+
+        // Timer
+        setInterval(() => {
+            // freeTurns++; turns++; updateUI(); 
+            // Disabled auto-increment for now to make game require interaction
+        }, 60000);
+
+        // Animation Loop
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+            ledMat.emissiveIntensity = 1.2 + 0.3 * Math.sin(t * 2);
+
+            // Claw Movement Logic
+            if (!dropping) {
+                // Combine Joystick and Button inputs
+                let dx = clawVelocity.x;
+                let dz = clawVelocity.z;
+
+                if (btnState.forward) dz = -CLAW_SPEED;
+                if (btnState.backward) dz = CLAW_SPEED;
+                if (btnState.left) dx = -CLAW_SPEED;
+                if (btnState.right) dx = CLAW_SPEED;
+
+                clawGroup.position.x += dx;
+                clawGroup.position.z += dz;
+
+                // Constraints
+                clawGroup.position.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawGroup.position.x));
+                clawGroup.position.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawGroup.position.z));
+            }
+
+            if (dropping) {
+                clawGroup.position.y += dropDir;
+                setFingers(true);
+
+                // Cord stretching visual
+                cord.scale.y = (7.5 - clawGroup.position.y) * 20;
+                cord.position.y = (7.5 - clawGroup.position.y) / 2 + 0.5;
+
+                if (clawGroup.position.y <= 2 && dropDir < 0) { tryGrab(); dropDir = 0.05; }
+                if (clawGroup.position.y >= 7.5 && dropDir > 0) { dropping = false; dropDir = -0.05; checkDrop(); }
+            } else {
+                setFingers(false);
+                cord.scale.y = 1;
+                cord.position.y = 0.5;
+            }
+
+            if (grabbed) grabbed.position.set(clawGroup.position.x, clawGroup.position.y - 1.5, clawGroup.position.z);
+
+            controls.update();
+            world.step(1 / 60);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+        updateUI();
+    </script>
+</body>
+
+</html>
