@@ -22,7 +22,6 @@
             color: #0ff;
             font-family: monospace;
             touch-action: none;
-            /* Prevent scrolling on mobile */
         }
 
         #score,
@@ -49,55 +48,39 @@
             left: 350px;
         }
 
-        #controls {
+        #drop {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: grid;
-            grid-template-areas:
-                ". forward ."
-                "left drop right"
-                ". backward .";
-            gap: 10px;
-            z-index: 10;
+            bottom: 30px;
+            left: calc(50% + 100px);
+            /* To the right of the centered joystick */
+            right: auto;
+            width: 100px;
+            height: 100px;
+
+            border-radius: 50%;
+            background: #28a745;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            border: 4px solid #1e7e34;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        #drop:active {
+            background: #1e7e34;
+            transform: scale(0.95);
         }
 
         button {
-            padding: 15px;
-            font-size: 20px;
-            border-radius: 8px;
             border: none;
-            background: rgba(255, 68, 68, 0.8);
-            color: white;
             cursor: pointer;
             user-select: none;
-            -webkit-user-select: none;
-        }
-
-        button:active {
-            background: rgba(255, 68, 68, 1);
-        }
-
-        #forward {
-            grid-area: forward;
-        }
-
-        #backward {
-            grid-area: backward;
-        }
-
-        #left {
-            grid-area: left;
-        }
-
-        #right {
-            grid-area: right;
-        }
-
-        #drop {
-            grid-area: drop;
-            background: #ffaa00;
-            font-weight: bold;
         }
 
         #insertCoin {
@@ -107,6 +90,8 @@
             background: #00aa00;
             padding: 8px 12px;
             font-size: 14px;
+            border-radius: 4px;
+            color: white;
         }
 
         #toggleCatalog {
@@ -116,12 +101,15 @@
             background: #0088ff;
             padding: 8px 12px;
             font-size: 14px;
+            border-radius: 4px;
+            color: white;
         }
 
         #zone_joystick {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
             width: 150px;
             height: 150px;
             z-index: 10;
@@ -138,6 +126,7 @@
             display: none;
             z-index: 20;
         }
+
 
         #catalog h3 {
             margin: 0 0 8px 0;
@@ -175,13 +164,8 @@
 
     <div id="zone_joystick"></div>
 
-    <div id="controls">
-        <button id="forward">⬆️</button>
-        <button id="left">⬅️</button>
-        <button id="drop">TEST DROP</button>
-        <button id="right">➡️</button>
-        <button id="backward">⬇️</button>
-    </div>
+    <button id="drop">DROP</button>
+
 
     <div id="catalog">
         <h3>Prize Catalog</h3>
@@ -193,10 +177,79 @@
         import * as CANNON from 'https://cdn.skypack.dev/cannon-es';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // Audio
-        const dropSound = new Audio('assets/sounds/drop.mp3');
-        const grabSound = new Audio('assets/sounds/grab.mp3');
-        const chuteSound = new Audio('assets/sounds/chute.mp3');
+        // Audio Manager (Web Audio API)
+        class AudioManager {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.motorOsc = null;
+                this.motorGain = null;
+                this.isPlayingMotor = false;
+            }
+
+            // Procedural Motor Sound (Whirring)
+            startMotor(pitch = 200) {
+                if (this.isPlayingMotor) return;
+                this.isPlayingMotor = true;
+
+                this.motorOsc = this.ctx.createOscillator();
+                this.motorOsc.type = 'sawtooth';
+                this.motorOsc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
+
+                this.motorGain = this.ctx.createGain();
+                this.motorGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                this.motorGain.gain.linearRampToValueAtTime(0.1, this.ctx.currentTime + 0.1);
+
+                // Filter to muffle it a bit like a motor
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 800;
+
+                this.motorOsc.connect(filter);
+                filter.connect(this.motorGain);
+                this.motorGain.connect(this.masterGain);
+                this.motorOsc.start();
+            }
+
+            stopMotor() {
+                if (!this.isPlayingMotor) return;
+                // "DJ Scratch" / Power down effect
+                const now = this.ctx.currentTime;
+                // Pitch drop
+                this.motorOsc.frequency.exponentialRampToValueAtTime(10, now + 0.3);
+                // Volume cut
+                this.motorGain.gain.linearRampToValueAtTime(0, now + 0.3);
+
+                this.motorOsc.stop(now + 0.3);
+                this.isPlayingMotor = false;
+            }
+
+            playTone(freq, type, duration) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playWin() {
+                // Arpeggio
+                [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.playTone(f, 'square', 0.4), i * 150));
+            }
+
+            playLose() {
+                [300, 250, 200].forEach((f, i) => setTimeout(() => this.playTone(f, 'triangle', 0.5), i * 300));
+            }
+        }
+        const audio = new AudioManager();
+        // User interaction required to start AudioContext usually, will handle on first input
+
 
         // UI Elements
         const scoreEl = document.getElementById('score');
@@ -250,29 +303,90 @@
         // Controls
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enablePan = false;
-        controls.minDistance = 8;
-        controls.maxDistance = 20;
+        controls.minDistance = 5;
+        controls.maxDistance = 30;
+
 
         // Lights
-        scene.add(new THREE.AmbientLight(0x555555));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        scene.add(new THREE.AmbientLight(0x222222));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
-        const spot = new THREE.SpotLight(0xffeecc, 1.5, 30, Math.PI / 6, 0.3);
-        spot.position.set(0, 15, 0);
-        spot.target.position.set(0, 0, 0);
-        scene.add(spot, spot.target);
+
+        // Light Manager
+        class LightManager {
+            constructor() {
+                this.mode = 'IDLE'; // IDLE, WIN, LOSE, PLAY
+                this.timer = 0;
+                this.leds = [];
+            }
+
+            addLed(mesh) { this.leds.push(mesh); }
+
+            update(dt) {
+                this.timer += dt;
+                const t = this.timer;
+
+                this.leds.forEach((led, i) => {
+                    const mat = led.material;
+                    if (this.mode === 'IDLE') {
+                        // Rainbow Wave
+                        const hue = (t * 0.2 + i * 0.1) % 1;
+                        mat.color.setHSL(hue, 1, 0.5);
+                        mat.emissive.setHSL(hue, 1, 0.5);
+                    } else if (this.mode === 'PLAY') {
+                        mat.color.setHex(0xffaa00);
+                        mat.emissive.setHex(0xffaa00);
+                        mat.emissiveIntensity = 1 + Math.sin(t * 10) * 0.5;
+                    } else if (this.mode === 'WIN') {
+                        // Green Strobe
+                        const on = Math.floor(t * 20) % 2 === 0;
+                        mat.color.setHex(on ? 0x00ff00 : 0x000000);
+                        mat.emissive.setHex(on ? 0x00ff00 : 0x000000);
+                        mat.emissiveIntensity = 2;
+                    } else if (this.mode === 'LOSE') {
+                        // Slow Blue Pulse
+                        const val = 0.5 + Math.sin(t * 2) * 0.5;
+                        mat.color.setHex(0x0000ff);
+                        mat.emissive.setHex(0x0000ff);
+                        mat.emissiveIntensity = val;
+                    }
+                });
+            }
+
+            setMode(m) { this.mode = m; this.timer = 0; }
+        }
+        const lights = new LightManager();
+
 
         // Physics
         const world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
 
-        // Machine
+        // Machine Base (with Hole)
+        // Floor pieces to create a hole at bottom-left (-x, +z)
         const machine = new THREE.Group();
         scene.add(machine);
+
         const baseMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.3, roughness: 0.7 });
-        machine.add(new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 8), baseMat));
-        const glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 });
+
+        // Floor Parts (Hole at corner approx -2 to -4 X, 2 to 4 Z)
+        // Main floor right
+        const f1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 8), baseMat);
+        f1.position.set(2, 0, 0);
+        machine.add(f1);
+
+        // Floor part top-left
+        const f2 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 4), baseMat);
+        f2.position.set(-2, 0, -2);
+        machine.add(f2);
+
+        // Chute "Hole" visual (black box below)
+        const hole = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.2, 3.8), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        hole.position.set(-2, -0.5, 2);
+        machine.add(hole);
+
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
         [[-4, 0], [4, 0], [0, -4], [0, 4]].forEach(([x, z]) => {
             const geo = new THREE.BoxGeometry(x === 0 ? 8 : 0.2, 8, z === 0 ? 8 : 0.2);
             const mesh = new THREE.Mesh(geo, glassMat);
@@ -283,16 +397,20 @@
         top.position.y = 8;
         machine.add(top);
 
+
         // LEDs
         const ledMat = new THREE.MeshStandardMaterial({ emissive: 0x00ffaa, emissiveIntensity: 1.5, color: 0x003300 });
         const ledGeo = new THREE.CylinderGeometry(0.1, 0.1, 8, 8);
-        const leds = [[-3.8, 4, -3.8], [3.8, 4, -3.8], [-3.8, 4, 3.8], [3.8, 4, 3.8]].map(pos => {
-            const m = new THREE.Mesh(ledGeo, ledMat);
+        const leds = [[-4, 4, -4], [4, 4, -4], [-4, 4, 4], [4, 4, 4]].map(pos => {
+            const m = new THREE.Mesh(ledGeo, ledMat.clone()); // Clone for individual control
             m.position.set(...pos);
-            m.rotation.x = Math.PI / 2;
+            // Vertical by default (Cylinder is Y-axis aligned)
             machine.add(m);
+            lights.addLed(m);
             return m;
         });
+
+
 
         // Chute
         const chute = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 2), new THREE.MeshStandardMaterial({ color: 0xffff00 }));
@@ -301,8 +419,12 @@
 
         // Claw
         const clawGroup = new THREE.Group();
+        // Pivot group for physics wiggle
+        const clawPivot = new THREE.Group();
+        clawGroup.add(clawPivot);
         clawGroup.position.set(0, 7.5, 0);
         machine.add(clawGroup);
+
 
         // Claw Cord (visual only)
         const cordGeo = new THREE.CylinderGeometry(0.05, 0.05, 1);
@@ -312,18 +434,39 @@
         clawGroup.add(cord);
 
         const hub = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 }));
-        clawGroup.add(hub);
-        const fingerGeo = new THREE.BoxGeometry(0.2, 2, 0.5);
+        clawPivot.add(hub); // Add to pivot not group directly
+
         const fingerMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.6, roughness: 0.4 });
         const fingers = [];
         for (let i = 0; i < 3; i++) {
-            const f = new THREE.Mesh(fingerGeo, fingerMat);
-            f.position.set(0, -1, 0);
-            f.rotation.y = i * 2 * Math.PI / 3;
-            f.userData.open = Math.PI / 4;
-            clawGroup.add(f);
-            fingers.push(f);
+            const pivot = new THREE.Group();
+            pivot.rotation.y = i * 2 * Math.PI / 3;
+
+            // Segment 1 (Upper)
+            const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1, 0.15), fingerMat);
+            s1.position.set(0, -0.5, 0);
+            s1.rotation.x = -0.3; // Angle out
+            pivot.add(s1);
+
+            // Segment 2 (Lower Hook)
+            const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1, 0.15), fingerMat);
+            s2.position.set(0, -1.3, 0.25);
+            s2.rotation.x = 0.6; // Angle in
+            pivot.add(s2);
+
+            // Tip
+            const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 8), fingerMat);
+            tip.position.set(0, -1.75, 0.5);
+            tip.rotation.x = -0.5;
+            pivot.add(tip);
+
+            pivot.userData.open = -Math.PI / 6; // Adjusted angle for new shape
+            clawPivot.add(pivot);
+
+            fingers.push(pivot);
         }
+
+
 
         // Balls & Prizes
         const balls = [];
@@ -348,8 +491,8 @@
             // Using relative path assuming index.html is in root and models in models/
             loader.load(`./models/${name}.glb`, (gltf) => {
                 const m = gltf.scene;
-                // Scale normalization might be needed depending on the models
-                m.scale.set(0.5, 0.5, 0.5);
+                // Scale 1/3 of 5.0 is approx 1.66
+                m.scale.set(1.7, 1.7, 1.7);
                 m.position.set((Math.random() - 0.5) * 5, 0.6, (Math.random() - 0.5) * 5);
                 scene.add(m);
                 prizes.push(m);
@@ -360,11 +503,32 @@
         });
 
         // Game Logic & Controls
-        let dropping = false, dropDir = -0.05, grabbed = null;
+        const CLAW_STATES = {
+            IDLE: 0,
+            DROPPING: 1,
+            WAIT_BOTTOM: 2,
+            CLOSING: 3,
+            WAIT_GRAB: 4,
+            RISING: 5,
+            MOVING_CORNER: 6,
+            WIGGLE_STOP: 7,
+            WAIT_DROP: 8,
+            OPENING: 9,
+            RETURNING: 10
+        };
+
+        let clawState = CLAW_STATES.IDLE;
+        let stateTimer = 0;
+        let grabbed = null;
         let clawVelocity = { x: 0, z: 0 };
         const CLAW_SPEED = 0.05;
         const LIMIT_X = 3.5;
         const LIMIT_Z = 3.5;
+        // Start open with negative angle
+        let targetFingerAngle = -Math.PI / 4;
+
+        let wiggleTime = 0;
+        let wiggleAmp = 0;
 
         // Joystick
         const joystickManager = nipplejs.create({
@@ -375,134 +539,252 @@
         });
 
         joystickManager.on('move', (evt, data) => {
-            if (data.vector) {
+            if (data.vector && clawState === CLAW_STATES.IDLE) {
+                audio.ctx.resume(); // Ensure context is running
                 clawVelocity.x = data.vector.x * CLAW_SPEED;
-                clawVelocity.z = -data.vector.y * CLAW_SPEED; // NippleJS Y is up, 3D Z is down/depth
+                clawVelocity.z = -data.vector.y * CLAW_SPEED;
+                audio.startMotor(200 + Math.abs(clawVelocity.x) * 1000);
             }
         });
 
         joystickManager.on('end', () => {
             clawVelocity.x = 0;
             clawVelocity.z = 0;
+            audio.stopMotor();
         });
 
-        // Button Controls
-        const btnState = { forward: false, backward: false, left: false, right: false };
-
-        const setupBtn = (id, key, val) => {
-            const btn = document.getElementById(id);
-            if (!btn) return;
-            btn.addEventListener('mousedown', () => btnState[key] = true);
-            btn.addEventListener('mouseup', () => btnState[key] = false);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); btnState[key] = true; });
-            btn.addEventListener('touchend', (e) => { e.preventDefault(); btnState[key] = false; });
-        };
-
-        setupBtn('forward', 'forward');
-        setupBtn('backward', 'backward');
-        setupBtn('left', 'left');
-        setupBtn('right', 'right');
-
+        // Drop Button
         document.getElementById('drop').onclick = dropClaw;
 
         function setFingers(open) {
-            fingers.forEach(f => {
-                const t = open ? f.userData.open : 0;
-                f.rotation.z += (t - f.rotation.z) * 0.2;
-            });
+            targetFingerAngle = open ? -Math.PI / 6 : 0;
         }
 
-        function dropClaw() {
-            if (!dropping && (turns > 0 || credits > 0)) {
-                if (credits > 0 && turns === 0) { credits--; turns++; }
-                else if (turns > 0) { turns--; } // Just use a turn
 
-                dropping = true;
+        function dropClaw() {
+
+            audio.ctx.resume();
+            if (clawState === CLAW_STATES.IDLE && (turns > 0 || credits > 0)) {
+                if (credits > 0 && turns === 0) { credits--; turns++; }
+                else if (turns > 0) { turns--; }
+
+                clawState = CLAW_STATES.DROPPING;
+                lights.setMode('PLAY');
+                setFingers(true);
                 updateUI();
-                dropSound.play().catch(e => console.log('Audio play failed', e));
+                audio.startMotor(150); // Lower pitch for drop
             } else if (turns === 0 && credits === 0) {
                 alert("Insert Coin!");
             }
         }
 
         function tryGrab() {
+            let found = null;
             [...balls, ...prizes].forEach(obj => {
-                // Simple distance check for grabbing
-                if (!grabbed && clawGroup.position.distanceTo(obj.position) < 0.75) {
-                    grabbed = obj;
-                    grabSound.play().catch(e => console.log('Audio play failed', e));
+                if (!found && clawGroup.position.distanceTo(obj.position) < 1.0) {
+                    found = obj;
                 }
             });
+            if (found) {
+                grabbed = found;
+                audio.playTone(400, 'sine', 0.1); // Small grab blip
+            }
         }
 
-        function checkDrop() {
+        function checkWin() {
             if (!grabbed) return;
-            const { x, z } = grabbed.position;
-            // Chute location check
-            if (Math.abs(x) < 1 && Math.abs(z + 3.5) < 1) {
-                chuteSound.play().catch(e => console.log('Audio play failed', e));
-                if (balls.includes(grabbed)) { freeTurns++; turns++; }
-                else { prizeCount++; tickets += 10; }
-                scene.remove(grabbed);
-            }
+            // Dropped in hole?
+            lights.setMode('WIN');
+            audio.playWin();
+            if (balls.includes(grabbed)) { freeTurns++; turns++; }
+            else { prizeCount++; tickets += 10; }
+            scene.remove(grabbed);
             grabbed = null;
             updateUI();
         }
 
         // Timer
         setInterval(() => {
-            // freeTurns++; turns++; updateUI(); 
-            // Disabled auto-increment for now to make game require interaction
+            // Disabled auto-increment
         }, 60000);
 
         // Animation Loop
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
+            const dt = clock.getDelta();
             const t = clock.getElapsedTime();
-            ledMat.emissiveIntensity = 1.2 + 0.3 * Math.sin(t * 2);
 
-            // Claw Movement Logic
-            if (!dropping) {
-                // Combine Joystick and Button inputs
-                let dx = clawVelocity.x;
-                let dz = clawVelocity.z;
+            lights.update(dt);
 
-                if (btnState.forward) dz = -CLAW_SPEED;
-                if (btnState.backward) dz = CLAW_SPEED;
-                if (btnState.left) dx = -CLAW_SPEED;
-                if (btnState.right) dx = CLAW_SPEED;
+            // Finger Animation
+            fingers.forEach(f => {
+                f.rotation.z += (targetFingerAngle - f.rotation.z) * 5 * dt;
+            });
 
-                clawGroup.position.x += dx;
-                clawGroup.position.z += dz;
-
-                // Constraints
-                clawGroup.position.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawGroup.position.x));
-                clawGroup.position.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawGroup.position.z));
-            }
-
-            if (dropping) {
-                clawGroup.position.y += dropDir;
-                setFingers(true);
-
-                // Cord stretching visual
-                cord.scale.y = (7.5 - clawGroup.position.y) * 20;
-                cord.position.y = (7.5 - clawGroup.position.y) / 2 + 0.5;
-
-                if (clawGroup.position.y <= 2 && dropDir < 0) { tryGrab(); dropDir = 0.05; }
-                if (clawGroup.position.y >= 7.5 && dropDir > 0) { dropping = false; dropDir = -0.05; checkDrop(); }
+            // Wiggle Animation
+            if (wiggleAmp > 0.01) {
+                wiggleTime += dt * 10;
+                wiggleAmp *= 0.95; // Damping
+                clawPivot.rotation.z = Math.sin(wiggleTime) * wiggleAmp;
             } else {
-                setFingers(false);
-                cord.scale.y = 1;
-                cord.position.y = 0.5;
+                clawPivot.rotation.z = 0;
             }
 
-            if (grabbed) grabbed.position.set(clawGroup.position.x, clawGroup.position.y - 1.5, clawGroup.position.z);
+            // State Machine
+            switch (clawState) {
+                case CLAW_STATES.IDLE:
+                    // Joystick Movement
+                    clawGroup.position.x += clawVelocity.x;
+                    clawGroup.position.z += clawVelocity.z;
+
+                    // Constraints
+                    clawGroup.position.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawGroup.position.x));
+                    clawGroup.position.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawGroup.position.z));
+                    break;
+
+                case CLAW_STATES.DROPPING:
+                    clawGroup.position.y -= 3 * dt;
+                    if (clawGroup.position.y <= 2.5) {
+                        clawGroup.position.y = 2.5;
+                        audio.stopMotor();
+                        clawState = CLAW_STATES.WAIT_BOTTOM;
+                        stateTimer = 0;
+                    }
+                    break;
+
+                case CLAW_STATES.WAIT_BOTTOM:
+                    stateTimer += dt;
+                    if (stateTimer > 0.5) {
+                        clawState = CLAW_STATES.CLOSING;
+                    }
+                    break;
+
+                case CLAW_STATES.RELEASING:
+                    setFingers(true); // Open
+                    grabTimer += dt;
+                    if (grabTimer > 0.5) {
+                        checkDrop();
+                        clawState = CLAW_STATES.IDLE;
+                        targetFingerAngle = -Math.PI / 6; // Reset to open correctly
+                    }
+                    break;
+
+
+                case CLAW_STATES.CLOSING:
+                    setFingers(false); // Close
+                    // Wait for fingers to visually close
+                    if (Math.abs(fingers[0].rotation.z - 0) < 0.1) {
+                        tryGrab();
+                        clawState = CLAW_STATES.WAIT_GRAB;
+                        stateTimer = 0;
+                    }
+                    break;
+
+                case CLAW_STATES.WAIT_GRAB:
+                    stateTimer += dt;
+                    if (stateTimer > 1.0) {
+                        clawState = CLAW_STATES.RISING;
+                        audio.startMotor(250); // Higher pitch rise
+                    }
+                    break;
+
+                case CLAW_STATES.RISING:
+                    clawGroup.position.y += 3 * dt;
+                    if (clawGroup.position.y >= 7.5) {
+                        clawGroup.position.y = 7.5;
+                        audio.stopMotor();
+                        clawState = CLAW_STATES.MOVING_CORNER;
+                        audio.startMotor(200);
+                    }
+                    break;
+
+                case CLAW_STATES.MOVING_CORNER:
+                    // Move to (-2, 2) approx (Center of hole)
+                    const targetX = -2;
+                    const targetZ = 2; // Front left is +Z in this camera setup (camera at +Z positive)
+
+                    const dx = targetX - clawGroup.position.x;
+                    const dz = targetZ - clawGroup.position.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist < 0.1) {
+                        clawGroup.position.x = targetX;
+                        clawGroup.position.z = targetZ;
+                        audio.stopMotor(); // SCRATCH STOP
+                        clawState = CLAW_STATES.WIGGLE_STOP;
+                        wiggleAmp = 0.2; // Trigger wiggle
+                        stateTimer = 0;
+                    } else {
+                        clawGroup.position.x += (dx / dist) * 4 * dt;
+                        clawGroup.position.z += (dz / dist) * 4 * dt;
+                    }
+                    break;
+
+                case CLAW_STATES.WIGGLE_STOP:
+                    stateTimer += dt;
+                    if (stateTimer > 1.0) {
+                        clawState = CLAW_STATES.OPENING;
+                    }
+                    break;
+
+                case CLAW_STATES.OPENING:
+                    setFingers(true);
+                    if (grabbed) {
+                        // Drop logic
+                        checkWin();
+                    } else {
+                        // Empty drop
+                        if (clawState !== CLAW_STATES.WAIT_DROP) {
+                            audio.playTone(150, 'sawtooth', 0.3); // Fail sound
+                            lights.setMode('LOSE');
+                        }
+                    }
+                    clawState = CLAW_STATES.WAIT_DROP;
+                    stateTimer = 0;
+                    break;
+
+                case CLAW_STATES.WAIT_DROP:
+                    stateTimer += dt;
+                    if (stateTimer > 1.0) {
+                        clawState = CLAW_STATES.RETURNING;
+                        audio.startMotor(200);
+                    }
+                    break;
+
+                case CLAW_STATES.RETURNING:
+                    // Return to 0,0
+                    const rdx = 0 - clawGroup.position.x;
+                    const rdz = 0 - clawGroup.position.z;
+                    const rdist = Math.sqrt(rdx * rdx + rdz * rdz);
+
+                    if (rdist < 0.1) {
+                        clawGroup.position.x = 0;
+                        clawGroup.position.z = 0;
+                        audio.stopMotor();
+                        clawState = CLAW_STATES.IDLE;
+                        lights.setMode('IDLE');
+                    } else {
+                        clawGroup.position.x += (rdx / rdist) * 4 * dt;
+                        clawGroup.position.z += (rdz / rdist) * 4 * dt;
+                    }
+                    break;
+            }
+
+            // Cord update
+            cord.scale.y = (7.5 - clawGroup.position.y) * 20;
+            cord.position.y = (7.5 - clawGroup.position.y) / 2 + 0.5;
+
+            // Grabbed Object Sync
+            if (grabbed) {
+                grabbed.position.set(clawGroup.position.x, clawGroup.position.y - 1.5, clawGroup.position.z);
+            }
 
             controls.update();
             world.step(1 / 60);
             renderer.render(scene, camera);
         }
+
         animate();
 
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
