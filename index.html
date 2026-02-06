@@ -529,35 +529,102 @@
         const lights = new LightManager();
 
 
+        const MACHINE_SCALE = 10;
+        const WORLD_SCALE = MACHINE_SCALE;
+
         // Physics
         const world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0);
+        world.gravity.set(0, -9.82 * WORLD_SCALE, 0);
+        world.allowSleep = true;
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.defaultContactMaterial.friction = 0.5;
+        world.defaultContactMaterial.restitution = 0.2;
+        const physicsBodies = new Map();
+        const physicsMeshes = [];
+        const floorMaterial = new CANNON.Material('floor');
+        const objectMaterial = new CANNON.Material('object');
+        world.addContactMaterial(new CANNON.ContactMaterial(floorMaterial, objectMaterial, {
+            friction: 0.6,
+            restitution: 0.15
+        }));
 
         // Machine Base (with Hole)
         // Floor pieces to create a hole at bottom-left (-x, +z)
         const machine = new THREE.Group();
         scene.add(machine);
-        machine.scale.set(10, 10, 10);
+        machine.scale.set(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
         const ROOF_Y = 6;
         const CLAW_TOP_Y = 5.5;
+        const FLOOR_Y = 2.4;
+        const FLOOR_THICKNESS = 0.5;
+        const FLOOR_TOP_Y = FLOOR_Y + FLOOR_THICKNESS / 2;
+        const CLAW_BOTTOM_Y = FLOOR_TOP_Y - 0.05;
+        const SPAWN_BOUNDS = { minX: -3.2, maxX: 3.2, minZ: -3.2, maxZ: 3.2 };
 
         const baseMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.3, roughness: 0.7 });
 
         // Floor Parts (Hole at corner approx -2 to -4 X, 2 to 4 Z)
         // Main floor right
         const f1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 8), baseMat);
-        f1.position.set(2, 0, 0);
+        f1.position.set(2, FLOOR_Y, 0);
         machine.add(f1);
 
         // Floor part top-left
         const f2 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 4), baseMat);
-        f2.position.set(-2, 0, -2);
+        f2.position.set(-2, FLOOR_Y, -2);
         machine.add(f2);
 
         // Chute "Hole" visual (black box below)
         const hole = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.2, 3.8), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-        hole.position.set(-2, -0.5, 2);
+        hole.position.set(-2, FLOOR_Y - 0.35, 2);
         machine.add(hole);
+
+        function toWorld(v) {
+            return new CANNON.Vec3(v.x * WORLD_SCALE, v.y * WORLD_SCALE, v.z * WORLD_SCALE);
+        }
+
+        function addStaticBox(halfExtents, position, material) {
+            const body = new CANNON.Body({ mass: 0, material });
+            const scaledHalf = new CANNON.Vec3(halfExtents.x * WORLD_SCALE, halfExtents.y * WORLD_SCALE, halfExtents.z * WORLD_SCALE);
+            body.addShape(new CANNON.Box(scaledHalf));
+            const worldPos = toWorld(position);
+            body.position.set(worldPos.x, worldPos.y, worldPos.z);
+            world.addBody(body);
+            return body;
+        }
+
+        function addDynamicBody(mesh, shape, mass = 1) {
+            const body = new CANNON.Body({ mass, material: objectMaterial });
+            body.addShape(shape);
+            const worldPos = toWorld(mesh.position);
+            body.position.set(worldPos.x, worldPos.y, worldPos.z);
+            body.linearDamping = 0.2;
+            body.angularDamping = 0.3;
+            world.addBody(body);
+            physicsBodies.set(mesh, body);
+            physicsMeshes.push(mesh);
+            return body;
+        }
+
+        function removePhysicsForMesh(mesh) {
+            const body = physicsBodies.get(mesh);
+            if (body) {
+                world.removeBody(body);
+                physicsBodies.delete(mesh);
+                const idx = physicsMeshes.indexOf(mesh);
+                if (idx !== -1) physicsMeshes.splice(idx, 1);
+            }
+        }
+
+        // Physics floor pieces (match f1/f2 geometry)
+        addStaticBox(new CANNON.Vec3(2, FLOOR_THICKNESS / 2, 4), new CANNON.Vec3(2, FLOOR_Y, 0), floorMaterial);
+        addStaticBox(new CANNON.Vec3(2, FLOOR_THICKNESS / 2, 2), new CANNON.Vec3(-2, FLOOR_Y, -2), floorMaterial);
+
+        // Physics walls (glass boundaries)
+        addStaticBox(new CANNON.Vec3(4, 3, 0.1), new CANNON.Vec3(0, 3, 4), floorMaterial);
+        addStaticBox(new CANNON.Vec3(4, 3, 0.1), new CANNON.Vec3(0, 3, -4), floorMaterial);
+        addStaticBox(new CANNON.Vec3(0.1, 3, 4), new CANNON.Vec3(4, 3, 0), floorMaterial);
+        addStaticBox(new CANNON.Vec3(0.1, 3, 4), new CANNON.Vec3(-4, 3, 0), floorMaterial);
 
         const glassMat = new THREE.MeshStandardMaterial({ color: 0xddeeff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
         [[-4, 0], [4, 0], [0, -4], [0, 4]].forEach(([x, z]) => {
@@ -614,11 +681,11 @@
             metalness: 0.1,
             roughness: 0.3
         });
-        const chuteBase = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.2, 2.2), chuteBaseMat);
-        chuteBase.position.set(-2, 0.25, 2);
+        const chuteBase = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.14, 1.0), chuteBaseMat);
+        chuteBase.position.set(-2, FLOOR_TOP_Y + 0.06, 2);
         machine.add(chuteBase);
-        const chuteRim = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 2.4), chuteGlowMat);
-        chuteRim.position.set(-2, 0.34, 2);
+        const chuteRim = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.05, 1.16), chuteGlowMat);
+        chuteRim.position.set(-2, FLOOR_TOP_Y + 0.12, 2);
         machine.add(chuteRim);
 
         // Claw
@@ -675,18 +742,71 @@
 
         // Balls & Prizes
         const balls = [];
-        for (let i = 0; i < 30; i++) {
+        const prizeSpawnSpheres = [];
+
+        function isHole(x, z) {
+            return Math.hypot(x + 2, z - 2) < 1.4;
+        }
+
+        function getPrizeSpawnPosition(radius) {
+            for (let attempt = 0; attempt < 50; attempt++) {
+                const minX = SPAWN_BOUNDS.minX + radius;
+                const maxX = SPAWN_BOUNDS.maxX - radius;
+                const minZ = SPAWN_BOUNDS.minZ + radius;
+                const maxZ = SPAWN_BOUNDS.maxZ - radius;
+                if (minX >= maxX || minZ >= maxZ) break;
+                const x = minX + Math.random() * (maxX - minX);
+                const z = minZ + Math.random() * (maxZ - minZ);
+                if (isHole(x, z)) continue;
+                let ok = true;
+                for (const s of prizeSpawnSpheres) {
+                    if (Math.hypot(x - s.x, z - s.z) < radius + s.r + 0.2) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok) {
+                    prizeSpawnSpheres.push({ x, z, r: radius });
+                    return { x, z };
+                }
+            }
+            const fallback = {
+                x: (SPAWN_BOUNDS.minX + SPAWN_BOUNDS.maxX) * 0.5,
+                z: (SPAWN_BOUNDS.minZ + SPAWN_BOUNDS.maxZ) * 0.5
+            };
+            return fallback;
+        }
+
+        function getBallSpawnPosition() {
+            for (let attempt = 0; attempt < 30; attempt++) {
+                const radius = 0.2;
+                const minX = SPAWN_BOUNDS.minX + radius;
+                const maxX = SPAWN_BOUNDS.maxX - radius;
+                const minZ = SPAWN_BOUNDS.minZ + radius;
+                const maxZ = SPAWN_BOUNDS.maxZ - radius;
+                const x = minX + Math.random() * (maxX - minX);
+                const z = minZ + Math.random() * (maxZ - minZ);
+                if (isHole(x, z)) continue;
+                return { x, z };
+            }
+            return { x: 0, z: 0 };
+        }
+
+        for (let i = 0; i < 10; i++) {
             // 5x absolute scale (relative to original) means 0.5 local scale inside 10x machine
             const b = new THREE.Mesh(
                 new THREE.SphereGeometry(0.15, 16, 16),
                 new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 1, 0.5) })
             );
-            b.position.set((Math.random() - 0.5) * 6, 0.5, (Math.random() - 0.5) * 6);
+            const spawn = getBallSpawnPosition();
+            b.position.set(spawn.x, FLOOR_TOP_Y + 0.15 + 0.05, spawn.z);
             b.userData.type = 'ball';
+            b.userData.mass = 0.6;
             machine.add(b);
             balls.push(b);
-
-            // TODO: Add Physics Body
+            const ballShape = new CANNON.Sphere(0.15 * WORLD_SCALE);
+            b.userData.bodyRadius = 0.15;
+            addDynamicBody(b, ballShape, b.userData.mass);
         }
 
         const loader = new GLTFLoader();
@@ -700,12 +820,25 @@
                 const m = gltf.scene;
                 // Scale 1/3 of 5.0 is approx 1.66
                 // 5x absolute scale -> 0.5x local (Original 1.7 * 0.5 = 0.85)
-                m.scale.set(0.85, 0.85, 0.85);
-                m.position.set((Math.random() - 0.5) * 5, 0.6, (Math.random() - 0.5) * 5);
+                m.scale.set(PRIZE_SCALE, PRIZE_SCALE, PRIZE_SCALE);
+                m.userData.baseScale = new THREE.Vector3(PRIZE_SCALE, PRIZE_SCALE, PRIZE_SCALE);
+                m.userData.mass = 1.8;
                 m.userData.type = 'prize';
+                m.position.set(0, 0, 0);
+                m.updateMatrixWorld(true);
+                const bounds = new THREE.Box3().setFromObject(m);
+                const sphere = new THREE.Sphere();
+                bounds.getBoundingSphere(sphere);
+                const visualRadius = Math.max(0.6, sphere.radius / MACHINE_SCALE);
+                const physicsRadius = Math.min(1.1, Math.max(0.45, visualRadius * 0.32));
+                const spawn = getPrizeSpawnPosition(physicsRadius);
+                m.position.set(spawn.x, FLOOR_TOP_Y + physicsRadius + 0.08, spawn.z);
                 machine.add(m);
                 prizes.push(m);
-                // TODO: Add Physics Body
+                m.userData.bodyRadius = physicsRadius;
+                m.userData.visualRadius = visualRadius;
+                const prizeShape = new CANNON.Sphere(physicsRadius * WORLD_SCALE);
+                addDynamicBody(m, prizeShape, m.userData.mass);
             }, undefined, (error) => {
                 console.error(`Error loading ${name}.glb:`, error);
             });
@@ -729,17 +862,19 @@
         let clawState = CLAW_STATES.IDLE;
         let stateTimer = 0;
         let grabbed = null;
+        let grabbedBody = null;
         let clawVelocity = { x: 0, z: 0 };
         const keyState = { left: false, right: false, up: false, down: false };
         const CLAW_SPEED = 0.05;
         const LIMIT_X = 3.5;
         const LIMIT_Z = 3.5;
-        const GRAB_RADIUS = 1.1;
+        const GRAB_RADIUS = 3.6;
         const GRAB_BASE_CHANCE = 0.85;
         const SLIP_BASE = 0.035;
         const SLIP_GRIP_PENALTY = 0.15;
         const SLIP_WEIGHT_PENALTY = 0.08;
         const WEIGHT_MAP = { ball: 0.8, prize: 1.2 };
+        const PRIZE_SCALE = 4.25;
         let currentSlipRisk = 0;
         // Start open with negative angle
         let targetFingerAngle = -Math.PI / 4;
@@ -793,7 +928,15 @@
                 const d = clawGroup.position.distanceTo(prizes[i].position);
                 if (d < best) { best = d; closest = prizes[i]; }
             }
-            closest.position.set(clawGroup.position.x, 3.3, clawGroup.position.z);
+            const liftY = CLAW_BOTTOM_Y - (closest.userData.bodyRadius ?? 0.6);
+            closest.position.set(clawGroup.position.x, Math.max(FLOOR_TOP_Y + 0.4, liftY), clawGroup.position.z);
+            const body = physicsBodies.get(closest);
+            if (body) {
+                const worldPos = toWorld(closest.position);
+                body.position.set(worldPos.x, worldPos.y, worldPos.z);
+                body.velocity.set(0, 0, 0);
+                body.angularVelocity.set(0, 0, 0);
+            }
         }
 
         document.addEventListener('keydown', (e) => {
@@ -868,6 +1011,20 @@
                     grabbed = found;
                     grabbed.userData.gripQuality = gripQuality;
                     grabbed.userData.weight = weight;
+                    const radius = grabbed.userData.bodyRadius ?? 0.6;
+                    const minCenterY = FLOOR_TOP_Y + radius;
+                    const maxOffset = Math.max(0.3, clawGroup.position.y - minCenterY);
+                    grabbed.userData.grabOffset = Math.min(radius + 0.3, maxOffset);
+                    const body = physicsBodies.get(grabbed);
+                    if (body) {
+                        grabbedBody = body;
+                        body.type = CANNON.Body.KINEMATIC;
+                        body.mass = 0;
+                        body.updateMassProperties();
+                        body.velocity.set(0, 0, 0);
+                        body.angularVelocity.set(0, 0, 0);
+                        body.collisionResponse = false;
+                    }
                     audio.playTone(400, 'sine', 0.1);
                 }
             }
@@ -875,8 +1032,21 @@
 
         function releaseGrabbedToFloor() {
             if (!grabbed) return;
-            grabbed.position.set(clawGroup.position.x, 0.6, clawGroup.position.z);
+            const dropY = FLOOR_TOP_Y + (grabbed.userData.bodyRadius ?? 0.4);
+            grabbed.position.set(clawGroup.position.x, dropY, clawGroup.position.z);
+            const body = physicsBodies.get(grabbed);
+            if (body) {
+                body.type = CANNON.Body.DYNAMIC;
+                body.mass = grabbed.userData.mass ?? 1;
+                body.updateMassProperties();
+                body.collisionResponse = true;
+                const worldPos = toWorld(grabbed.position);
+                body.position.set(worldPos.x, worldPos.y, worldPos.z);
+                body.velocity.set(0, 0, 0);
+                body.angularVelocity.set(0, 0, 0);
+            }
             grabbed = null;
+            grabbedBody = null;
             currentSlipRisk = 0;
             audio.playTone(180, 'sawtooth', 0.2);
             lights.setMode('LOSE');
@@ -904,14 +1074,24 @@
             // Dropped in hole?
             lights.setMode('WIN');
             audio.playWin();
-            if (balls.includes(grabbed)) { freeTurns++; turns++; }
+            const wasBall = balls.includes(grabbed);
+            if (wasBall) { freeTurns++; turns++; }
             else { prizeCount++; tickets += 10; }
             if (grabbed.parent) {
                 grabbed.parent.remove(grabbed);
             } else {
                 scene.remove(grabbed);
             }
+            if (wasBall) {
+                const idx = balls.indexOf(grabbed);
+                if (idx !== -1) balls.splice(idx, 1);
+            } else {
+                const idx = prizes.indexOf(grabbed);
+                if (idx !== -1) prizes.splice(idx, 1);
+            }
+            removePhysicsForMesh(grabbed);
             grabbed = null;
+            grabbedBody = null;
             currentSlipRisk = 0;
             updateUI();
         }
@@ -971,8 +1151,8 @@
 
                 case CLAW_STATES.DROPPING:
                     clawGroup.position.y -= 1.5 * dt; // Slower drop
-                    if (clawGroup.position.y <= 3.5) { // Stop higher (Limit 3.5)
-                        clawGroup.position.y = 3.5;
+                    if (clawGroup.position.y <= CLAW_BOTTOM_Y) {
+                        clawGroup.position.y = CLAW_BOTTOM_Y;
                         audio.stopMotor();
                         clawState = CLAW_STATES.WAIT_BOTTOM;
                         stateTimer = 0;
@@ -1098,11 +1278,32 @@
 
             // Grabbed Object Sync
             if (grabbed) {
-                grabbed.position.set(clawGroup.position.x, clawGroup.position.y - 1.5, clawGroup.position.z);
+                const offset = grabbed.userData.grabOffset ?? 1.0;
+                grabbed.position.set(clawGroup.position.x, clawGroup.position.y - offset, clawGroup.position.z);
+                if (grabbedBody) {
+                    const worldPos = toWorld(grabbed.position);
+                    grabbedBody.position.set(worldPos.x, worldPos.y, worldPos.z);
+                }
             }
 
+            world.step(1 / 60, dt, 3);
+            physicsMeshes.forEach((mesh) => {
+                if (mesh === grabbed) return;
+                const body = physicsBodies.get(mesh);
+                if (!body) return;
+                mesh.position.set(body.position.x / WORLD_SCALE, body.position.y / WORLD_SCALE, body.position.z / WORLD_SCALE);
+                mesh.quaternion.set(body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w);
+            });
+
+            prizes.forEach((p) => {
+                if (!p.userData.baseScale) return;
+                const base = p.userData.baseScale;
+                const squish = new THREE.Vector3(base.x * 1.18, base.y * 0.68, base.z * 1.18);
+                const target = p === grabbed ? squish : base;
+                p.scale.lerp(target, 9 * dt);
+            });
+
             controls.update();
-            world.step(1 / 60);
         }
 
         function render() {
