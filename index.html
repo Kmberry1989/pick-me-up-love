@@ -353,7 +353,7 @@
         // Three.js Setup
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 70, 120);
+        camera.position.set(0, 100, 200);
         const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -362,8 +362,8 @@
         // Controls
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enablePan = false;
-        controls.minDistance = 50;
-        controls.maxDistance = 300;
+        controls.minDistance = 90;
+        controls.maxDistance = 420;
 
 
         // Lights
@@ -529,7 +529,7 @@
         const lights = new LightManager();
 
 
-        const MACHINE_SCALE = 10;
+        const MACHINE_SCALE = 14;
         const WORLD_SCALE = MACHINE_SCALE;
 
         // Physics
@@ -792,7 +792,7 @@
             return { x: 0, z: 0 };
         }
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 40; i++) {
             // 5x absolute scale (relative to original) means 0.5 local scale inside 10x machine
             const b = new THREE.Mesh(
                 new THREE.SphereGeometry(0.15, 16, 16),
