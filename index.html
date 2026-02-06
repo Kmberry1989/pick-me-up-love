@@ -29,11 +29,12 @@
         #tickets {
             position: absolute;
             top: 10px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.88);
             padding: 6px 10px;
             border-radius: 6px;
             font-size: 16px;
             pointer-events: none;
+            z-index: 25;
         }
 
         #score {
@@ -41,11 +42,11 @@
         }
 
         #credits {
-            left: 200px;
+            left: 330px;
         }
 
         #tickets {
-            left: 350px;
+            left: 470px;
         }
 
         #drop {
@@ -70,6 +71,12 @@
             align-items: center;
             justify-content: center;
             user-select: none;
+        }
+
+        #drop[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(0.3);
         }
 
         #drop:active {
@@ -150,6 +157,53 @@
 
         canvas {
             display: block;
+        }
+
+        @media (max-width: 700px) {
+            #score,
+            #credits,
+            #tickets {
+                left: 10px;
+                top: 8px;
+                font-size: 14px;
+                padding: 6px 8px;
+            }
+
+            #credits {
+                top: 36px;
+            }
+
+            #tickets {
+                top: 64px;
+            }
+
+            #insertCoin {
+                top: 8px;
+                right: 10px;
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            #toggleCatalog {
+                top: 46px;
+                right: 10px;
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            #zone_joystick {
+                width: 120px;
+                height: 120px;
+                bottom: 12%;
+            }
+
+            #drop {
+                width: 90px;
+                height: 90px;
+                left: calc(50% + 85px);
+                bottom: 12%;
+                font-size: 18px;
+            }
         }
     </style>
 </head>
@@ -303,6 +357,7 @@
         const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = false;
 
         // Controls
         const controls = new OrbitControls(camera, renderer.domElement);
@@ -313,13 +368,93 @@
 
         // Lights
         // Lights
-        scene.add(new THREE.AmbientLight(0x404040)); // Increased ambient
-        scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5)); // Sky/Ground ambiance
+        scene.background = new THREE.Color(0x05050a);
+        scene.fog = new THREE.FogExp2(0x05050a, 0.012);
+
+        scene.add(new THREE.AmbientLight(0x404040));
+        scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 0.45));
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(100, 200, 100);
-        dirLight.castShadow = true; // Enable shadows if renderer supports
+        dirLight.castShadow = false;
         scene.add(dirLight);
+
+        const floorCanvas = document.createElement('canvas');
+        floorCanvas.width = 256;
+        floorCanvas.height = 256;
+        const floorCtx = floorCanvas.getContext('2d');
+        if (floorCtx) {
+            const grad = floorCtx.createLinearGradient(0, 0, 0, 256);
+            grad.addColorStop(0, '#070712');
+            grad.addColorStop(1, '#020208');
+            floorCtx.fillStyle = grad;
+            floorCtx.fillRect(0, 0, 256, 256);
+            floorCtx.strokeStyle = 'rgba(0, 255, 255, 0.14)';
+            floorCtx.lineWidth = 1;
+            for (let i = 0; i <= 256; i += 32) {
+                floorCtx.beginPath();
+                floorCtx.moveTo(i, 0);
+                floorCtx.lineTo(i, 256);
+                floorCtx.stroke();
+                floorCtx.beginPath();
+                floorCtx.moveTo(0, i);
+                floorCtx.lineTo(256, i);
+                floorCtx.stroke();
+            }
+        }
+        const floorTex = new THREE.CanvasTexture(floorCanvas);
+        floorTex.wrapS = THREE.RepeatWrapping;
+        floorTex.wrapT = THREE.RepeatWrapping;
+        floorTex.repeat.set(6, 6);
+        if (renderer.capabilities.getMaxAnisotropy) {
+            floorTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        }
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(200, 200),
+            new THREE.MeshStandardMaterial({ map: floorTex, metalness: 0.1, roughness: 0.9 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -1.2;
+        scene.add(floor);
+
+        const backdropCanvas = document.createElement('canvas');
+        backdropCanvas.width = 16;
+        backdropCanvas.height = 256;
+        const backCtx = backdropCanvas.getContext('2d');
+        if (backCtx) {
+            const backGrad = backCtx.createLinearGradient(0, 0, 0, 256);
+            backGrad.addColorStop(0, '#0d0d26');
+            backGrad.addColorStop(0.5, '#070714');
+            backGrad.addColorStop(1, '#020208');
+            backCtx.fillStyle = backGrad;
+            backCtx.fillRect(0, 0, 16, 256);
+        }
+        const backdropTex = new THREE.CanvasTexture(backdropCanvas);
+        const backdropMat = new THREE.MeshBasicMaterial({ map: backdropTex, side: THREE.DoubleSide });
+        const backWall = new THREE.Mesh(new THREE.PlaneGeometry(240, 120), backdropMat);
+        backWall.position.set(0, 45, -130);
+        scene.add(backWall);
+        const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(240, 120), backdropMat);
+        leftWall.position.set(-130, 45, 0);
+        leftWall.rotation.y = Math.PI / 2;
+        scene.add(leftWall);
+        const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(240, 120), backdropMat);
+        rightWall.position.set(130, 45, 0);
+        rightWall.rotation.y = -Math.PI / 2;
+        scene.add(rightWall);
+
+        const dustCount = 160;
+        const dustPositions = new Float32Array(dustCount * 3);
+        for (let i = 0; i < dustCount; i++) {
+            dustPositions[i * 3] = (Math.random() - 0.5) * 160;
+            dustPositions[i * 3 + 1] = 10 + Math.random() * 70;
+            dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 160;
+        }
+        const dustGeo = new THREE.BufferGeometry();
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+        const dustMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.35, depthWrite: false });
+        const dust = new THREE.Points(dustGeo, dustMat);
+        scene.add(dust);
 
         // Arcade Cabinet Internal SpotLight
         const spotLight = new THREE.SpotLight(0xffaa00, 2.0);
@@ -331,6 +466,14 @@
         spotLight.target.position.set(0, 0, 0);
         scene.add(spotLight);
         scene.add(spotLight.target);
+
+        const neonCyan = new THREE.PointLight(0x00ffff, 0.6, 220);
+        neonCyan.position.set(60, 50, 60);
+        scene.add(neonCyan);
+
+        const neonMagenta = new THREE.PointLight(0xff33cc, 0.55, 200);
+        neonMagenta.position.set(-70, 40, -40);
+        scene.add(neonMagenta);
 
         // Light Manager
         class LightManager {
@@ -387,6 +530,8 @@
         const machine = new THREE.Group();
         scene.add(machine);
         machine.scale.set(10, 10, 10);
+        const ROOF_Y = 6;
+        const CLAW_TOP_Y = 5.5;
 
         const baseMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.3, roughness: 0.7 });
 
@@ -414,9 +559,28 @@
             machine.add(mesh);
         });
         const top = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 8), baseMat);
-        top.position.y = 6;
+        top.position.y = ROOF_Y;
         machine.add(top);
 
+        const neonStripMat = new THREE.MeshStandardMaterial({
+            color: 0x00ffff,
+            emissive: 0x00ffff,
+            emissiveIntensity: 1.5,
+            metalness: 0.2,
+            roughness: 0.4
+        });
+        const stripLong = new THREE.BoxGeometry(8.2, 0.1, 0.1);
+        const stripShort = new THREE.BoxGeometry(0.1, 0.1, 8.2);
+        [
+            [0, 0.55, 4.05, stripLong],
+            [0, 0.55, -4.05, stripLong],
+            [4.05, 0.55, 0, stripShort],
+            [-4.05, 0.55, 0, stripShort]
+        ].forEach(([x, y, z, geo]) => {
+            const strip = new THREE.Mesh(geo, neonStripMat);
+            strip.position.set(x, y, z);
+            machine.add(strip);
+        });
 
         // LEDs
         // LEDs
@@ -433,25 +597,39 @@
 
 
 
-        // Chute
-        const chute = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 2), new THREE.MeshStandardMaterial({ color: 0xffff00 }));
-        chute.position.set(0, 0.25, -3.5);
-        scene.add(chute);
+        // Chute (aligned with hole at -2, 2 in machine coordinates)
+        const chuteBaseMat = new THREE.MeshStandardMaterial({ color: 0xffcc33, metalness: 0.2, roughness: 0.6 });
+        const chuteGlowMat = new THREE.MeshStandardMaterial({
+            color: 0xffee88,
+            emissive: 0xffcc55,
+            emissiveIntensity: 1.2,
+            metalness: 0.1,
+            roughness: 0.3
+        });
+        const chuteBase = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.2, 2.2), chuteBaseMat);
+        chuteBase.position.set(-2, 0.25, 2);
+        machine.add(chuteBase);
+        const chuteRim = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 2.4), chuteGlowMat);
+        chuteRim.position.set(-2, 0.34, 2);
+        machine.add(chuteRim);
 
         // Claw
         const clawGroup = new THREE.Group();
         // Pivot group for physics wiggle
         const clawPivot = new THREE.Group();
         clawGroup.add(clawPivot);
-        clawGroup.position.set(0, 5.5, 0); // Lower start pos
+        clawGroup.position.set(0, CLAW_TOP_Y, 0); // Lower start pos
         machine.add(clawGroup);
 
+        const dropButton = document.getElementById('drop');
+        let clawReady = false;
+        dropButton.disabled = true;
 
         // Claw Cord (visual only)
         const cordGeo = new THREE.CylinderGeometry(0.05, 0.05, 1);
         const cordMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
         const cord = new THREE.Mesh(cordGeo, cordMat);
-        cord.position.y = 1.2; // Move cord up to avoid clipping fingers
+        cord.position.y = 1.2;
         clawGroup.add(cord);
 
         // Custom Claw Model
@@ -481,6 +659,8 @@
                 child.userData.axis = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle)).normalize();
                 child.userData.currentAngle = 0;
             });
+            clawReady = true;
+            dropButton.disabled = false;
         }, undefined, (err) => console.error('Error loading claw:', err));
 
 
@@ -494,6 +674,7 @@
                 new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 1, 0.5) })
             );
             b.position.set((Math.random() - 0.5) * 6, 0.5, (Math.random() - 0.5) * 6);
+            b.userData.type = 'ball';
             machine.add(b);
             balls.push(b);
 
@@ -513,6 +694,7 @@
                 // 5x absolute scale -> 0.5x local (Original 1.7 * 0.5 = 0.85)
                 m.scale.set(0.85, 0.85, 0.85);
                 m.position.set((Math.random() - 0.5) * 5, 0.6, (Math.random() - 0.5) * 5);
+                m.userData.type = 'prize';
                 machine.add(m);
                 prizes.push(m);
                 // TODO: Add Physics Body
@@ -544,6 +726,13 @@
         const CLAW_SPEED = 0.05;
         const LIMIT_X = 3.5;
         const LIMIT_Z = 3.5;
+        const GRAB_RADIUS = 1.1;
+        const GRAB_BASE_CHANCE = 0.85;
+        const SLIP_BASE = 0.035;
+        const SLIP_GRIP_PENALTY = 0.15;
+        const SLIP_WEIGHT_PENALTY = 0.08;
+        const WEIGHT_MAP = { ball: 0.8, prize: 1.2 };
+        let currentSlipRisk = 0;
         // Start open with negative angle
         let targetFingerAngle = -Math.PI / 4;
 
@@ -563,7 +752,8 @@
                 audio.ctx.resume(); // Ensure context is running
                 clawVelocity.x = data.vector.x * CLAW_SPEED;
                 clawVelocity.z = -data.vector.y * CLAW_SPEED;
-                audio.startMotor(200 + Math.abs(clawVelocity.x) * 1000);
+                const speed = Math.hypot(clawVelocity.x, clawVelocity.z);
+                audio.startMotor(200 + speed * 1000);
             }
         });
 
@@ -580,7 +770,8 @@
             clawVelocity.x = x * CLAW_SPEED;
             clawVelocity.z = z * CLAW_SPEED;
             if (x !== 0 || z !== 0) {
-                audio.startMotor(200 + Math.abs(clawVelocity.x) * 1000);
+                const speed = Math.hypot(clawVelocity.x, clawVelocity.z);
+                audio.startMotor(200 + speed * 1000);
             } else {
                 audio.stopMotor();
             }
@@ -622,7 +813,7 @@
         });
 
         // Drop Button
-        document.getElementById('drop').onclick = dropClaw;
+        dropButton.onclick = dropClaw;
 
         function setFingers(open) {
             targetFingerAngle = open ? -Math.PI / 2.5 : Math.PI / 4; // Wide open / Tight close
@@ -632,9 +823,13 @@
         function dropClaw() {
 
             audio.ctx.resume();
+            if (!clawReady) return;
             if (clawState === CLAW_STATES.IDLE && (turns > 0 || credits > 0)) {
-                if (credits > 0 && turns === 0) { credits--; turns++; }
-                else if (turns > 0) { turns--; }
+                if (turns > 0) {
+                    turns--;
+                } else if (credits > 0) {
+                    credits--;
+                }
 
                 clawState = CLAW_STATES.DROPPING;
                 lights.setMode('PLAY');
@@ -648,15 +843,52 @@
 
         function tryGrab() {
             let found = null;
+            let best = Infinity;
             [...balls, ...prizes].forEach(obj => {
-                if (!found && clawGroup.position.distanceTo(obj.position) < 1.0) {
+                const d = clawGroup.position.distanceTo(obj.position);
+                if (d < GRAB_RADIUS && d < best) {
+                    best = d;
                     found = obj;
                 }
             });
             if (found) {
-                grabbed = found;
-                audio.playTone(400, 'sine', 0.1); // Small grab blip
+                const type = found.userData.type || 'prize';
+                const weight = WEIGHT_MAP[type] || 1;
+                const gripQuality = Math.max(0, 1 - (best / GRAB_RADIUS));
+                const chance = testMode ? 1 : Math.min(1, GRAB_BASE_CHANCE * gripQuality * (1 / weight));
+                if (Math.random() < chance) {
+                    grabbed = found;
+                    grabbed.userData.gripQuality = gripQuality;
+                    grabbed.userData.weight = weight;
+                    audio.playTone(400, 'sine', 0.1);
+                }
             }
+        }
+
+        function releaseGrabbedToFloor() {
+            if (!grabbed) return;
+            grabbed.position.set(clawGroup.position.x, 0.6, clawGroup.position.z);
+            grabbed = null;
+            currentSlipRisk = 0;
+            audio.playTone(180, 'sawtooth', 0.2);
+            lights.setMode('LOSE');
+        }
+
+        function maybeSlip(dt) {
+            if (!grabbed || testMode) {
+                currentSlipRisk = 0;
+                return false;
+            }
+            const gripQuality = grabbed.userData.gripQuality ?? 0.5;
+            const weight = grabbed.userData.weight ?? 1;
+            const slipPerSecond = SLIP_BASE + (1 - gripQuality) * SLIP_GRIP_PENALTY + Math.max(0, weight - 1) * SLIP_WEIGHT_PENALTY;
+            currentSlipRisk = slipPerSecond;
+            const slipChance = 1 - Math.pow(1 - slipPerSecond, dt);
+            if (Math.random() < slipChance) {
+                releaseGrabbedToFloor();
+                return true;
+            }
+            return false;
         }
 
         function checkWin() {
@@ -672,6 +904,7 @@
                 scene.remove(grabbed);
             }
             grabbed = null;
+            currentSlipRisk = 0;
             updateUI();
         }
 
@@ -685,6 +918,8 @@
 
         function update(dt) {
             lights.update(dt);
+            dust.rotation.y += dt * 0.02;
+            if (!grabbed) currentSlipRisk = 0;
 
             // Finger Animation
             fingers.forEach(f => {
@@ -709,10 +944,10 @@
                 clawPivot.rotation.z = 0;
             }
 
-            // Update Cord (Stretch to roof at Y=6)
-            const distToRoof = 6 - clawGroup.position.y;
-            cord.scale.y = Math.max(0.1, distToRoof); // Cord height 1 base
-            cord.position.y = distToRoof / 2;
+            // Update Cord (Stretch to roof at ROOF_Y)
+            const distToRoof = Math.max(0.2, ROOF_Y - clawGroup.position.y);
+            cord.scale.y = distToRoof;
+            cord.position.y = distToRoof / 2 + 0.2;
 
             // State Machine
             switch (clawState) {
@@ -743,18 +978,8 @@
                     }
                     break;
 
-                case CLAW_STATES.RELEASING:
-                    setFingers(true); // Open
-                    grabTimer += dt;
-                    if (grabTimer > 0.5) {
-                        checkDrop();
-                        clawState = CLAW_STATES.IDLE;
-                        targetFingerAngle = -Math.PI / 6; // Reset to open correctly
-                    }
-                    break;
-
-
                 case CLAW_STATES.CLOSING:
+                    if (!clawReady || fingers.length === 0) break;
                     setFingers(false); // Close
                     // Wait for fingers to visually close
                     // Check against target angle using userData
@@ -775,8 +1000,9 @@
 
                 case CLAW_STATES.RISING:
                     clawGroup.position.y += 1.5 * dt;
-                    if (clawGroup.position.y >= 5.5) { // New roof height
-                        clawGroup.position.y = 5.5;
+                    maybeSlip(dt);
+                    if (clawGroup.position.y >= CLAW_TOP_Y) {
+                        clawGroup.position.y = CLAW_TOP_Y;
                         audio.stopMotor();
                         clawState = CLAW_STATES.MOVING_CORNER;
                         audio.startMotor(200);
@@ -803,6 +1029,7 @@
                         const move = Math.min(dist, 4 * dt);
                         clawGroup.position.x += (dx / dist) * move;
                         clawGroup.position.z += (dz / dist) * move;
+                        maybeSlip(dt);
                     }
                     break;
 
@@ -861,10 +1088,6 @@
             clawGroup.position.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawGroup.position.x));
             clawGroup.position.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawGroup.position.z));
 
-            // Cord update
-            cord.scale.y = (7.5 - clawGroup.position.y) * 20;
-            cord.position.y = (7.5 - clawGroup.position.y) / 2 + 0.5;
-
             // Grabbed Object Sync
             if (grabbed) {
                 grabbed.position.set(clawGroup.position.x, clawGroup.position.y - 1.5, clawGroup.position.z);
@@ -917,11 +1140,16 @@
             const payload = {
                 mode: clawState,
                 coords: 'x right, y up, z toward camera',
+                clawReady,
+                slipRisk: Number(currentSlipRisk.toFixed(3)),
                 claw: {
                     x: Number(clawGroup.position.x.toFixed(2)),
                     y: Number(clawGroup.position.y.toFixed(2)),
                     z: Number(clawGroup.position.z.toFixed(2)),
-                    grabbed: grabbed ? true : false
+                    grabbed: grabbed ? true : false,
+                    grabQuality: grabbed ? Number((grabbed.userData.gripQuality ?? 0).toFixed(2)) : 0,
+                    slipRisk: Number(currentSlipRisk.toFixed(3)),
+                    clawReady
                 },
                 counts: {
                     prizeCount,

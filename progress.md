@@ -22,3 +22,19 @@ Test runs:
 TODOs:
 - If you want deterministic catalog purchase tests, add action payloads to click catalog items with sufficient tickets.
 - Re-run Playwright after any new feature changes.
+
+Updates (2026-02-06):
+- Stabilized claw logic: unified cord scaling with ROOF_Y + CLAW_TOP_Y constants, removed dead RELEASING state, fixed credit/turn consumption, guarded close logic until GLB loaded, and corrected motor pitch to use movement magnitude.
+- Added neon arcade environment: grid floor + gradient backdrop, fog, dust particles, neon base strips, cyan/magenta lights; moved/realigned chute into machine with emissive rim.
+- Added lightweight grab realism with distance/weight chance and slip risk; test mode remains deterministic.
+- Mobile-first UI polish: stacked HUD on small screens, resized joystick/drop, improved HUD opacity and z-index.
+- Extended render_game_to_text with clawReady and slipRisk plus grabQuality.
+
+Test runs:
+- Playwright baseline (2 iterations): PASS (no console errors, claw returns to IDLE).
+- Playwright grab realism smoke (custom actions, 1 iteration): PASS (grabQuality/slipRisk present; no errors).
+- Note: One Playwright run timed out at 10s with 2 iterations; reran with 1 iteration successfully.
+- Deterministic win test (`?test=1` + `B` + drop): PASS (prizeCount 1, tickets 10).
+
+TODOs:
+- Optionally add a short on-screen controls hint for first-time players.
