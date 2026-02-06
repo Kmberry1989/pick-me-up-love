@@ -371,10 +371,10 @@
         scene.background = new THREE.Color(0x0b0b18);
         scene.fog = new THREE.FogExp2(0x0b0b18, 0.007);
 
-        scene.add(new THREE.AmbientLight(0x666666, 1.2));
-        scene.add(new THREE.HemisphereLight(0xffffdd, 0x202040, 0.7));
+        scene.add(new THREE.AmbientLight(0x777777, 1.6));
+        scene.add(new THREE.HemisphereLight(0xffffee, 0x2a2a45, 0.9));
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
         dirLight.position.set(100, 200, 100);
         dirLight.castShadow = false;
         scene.add(dirLight);
@@ -410,38 +410,47 @@
             floorTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         }
         const floor = new THREE.Mesh(
-            new THREE.PlaneGeometry(200, 200),
+            new THREE.PlaneGeometry(240, 240),
             new THREE.MeshStandardMaterial({ map: floorTex, metalness: 0.1, roughness: 0.9 })
         );
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = -1.2;
         scene.add(floor);
 
-        const backdropCanvas = document.createElement('canvas');
-        backdropCanvas.width = 16;
-        backdropCanvas.height = 256;
-        const backCtx = backdropCanvas.getContext('2d');
-        if (backCtx) {
-            const backGrad = backCtx.createLinearGradient(0, 0, 0, 256);
-            backGrad.addColorStop(0, '#1a1a3d');
-            backGrad.addColorStop(0.5, '#0f0f24');
-            backGrad.addColorStop(1, '#05050d');
-            backCtx.fillStyle = backGrad;
-            backCtx.fillRect(0, 0, 16, 256);
-        }
-        const backdropTex = new THREE.CanvasTexture(backdropCanvas);
-        const backdropMat = new THREE.MeshBasicMaterial({ map: backdropTex, side: THREE.DoubleSide });
-        const backWall = new THREE.Mesh(new THREE.PlaneGeometry(240, 120), backdropMat);
-        backWall.position.set(0, 45, -130);
-        scene.add(backWall);
-        const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(240, 120), backdropMat);
-        leftWall.position.set(-130, 45, 0);
-        leftWall.rotation.y = Math.PI / 2;
-        scene.add(leftWall);
-        const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(240, 120), backdropMat);
-        rightWall.position.set(130, 45, 0);
-        rightWall.rotation.y = -Math.PI / 2;
-        scene.add(rightWall);
+        const roomMat = new THREE.MeshStandardMaterial({
+            color: 0x2a2a3a,
+            emissive: 0x111126,
+            emissiveIntensity: 0.35,
+            transparent: true,
+            opacity: 0.36,
+            roughness: 0.85,
+            metalness: 0.05,
+            side: THREE.DoubleSide
+        });
+        const roomSize = 260;
+        const roomHeight = 160;
+        const roomWallGeo = new THREE.PlaneGeometry(roomSize, roomHeight);
+        const roomHalf = roomSize / 2;
+        const roomWallY = roomHeight / 2;
+        const roomBack = new THREE.Mesh(roomWallGeo, roomMat);
+        roomBack.position.set(0, roomWallY, -roomHalf);
+        scene.add(roomBack);
+        const roomFront = new THREE.Mesh(roomWallGeo, roomMat);
+        roomFront.position.set(0, roomWallY, roomHalf);
+        roomFront.rotation.y = Math.PI;
+        scene.add(roomFront);
+        const roomLeft = new THREE.Mesh(roomWallGeo, roomMat);
+        roomLeft.position.set(-roomHalf, roomWallY, 0);
+        roomLeft.rotation.y = Math.PI / 2;
+        scene.add(roomLeft);
+        const roomRight = new THREE.Mesh(roomWallGeo, roomMat);
+        roomRight.position.set(roomHalf, roomWallY, 0);
+        roomRight.rotation.y = -Math.PI / 2;
+        scene.add(roomRight);
+        const roomCeil = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), roomMat);
+        roomCeil.position.set(0, roomHeight, 0);
+        roomCeil.rotation.x = Math.PI / 2;
+        scene.add(roomCeil);
 
         const dustCount = 160;
         const dustPositions = new Float32Array(dustCount * 3);
@@ -457,31 +466,43 @@
         scene.add(dust);
 
         // Arcade Cabinet Internal SpotLight
-        const spotLight = new THREE.SpotLight(0xffcc66, 3.2);
-        spotLight.position.set(0, 70, 10);
-        spotLight.angle = Math.PI / 3.2;
+        const spotLight = new THREE.SpotLight(0xffdd88, 4.2);
+        spotLight.position.set(0, 85, 15);
+        spotLight.angle = Math.PI / 3.1;
         spotLight.penumbra = 0.5;
         spotLight.decay = 2;
-        spotLight.distance = 240;
+        spotLight.distance = 280;
         spotLight.target.position.set(0, 0, 0);
         scene.add(spotLight);
         scene.add(spotLight.target);
 
-        const cabinetFill = new THREE.PointLight(0xffffff, 1.1, 140);
-        cabinetFill.position.set(0, 38, 8);
+        const cabinetFill = new THREE.PointLight(0xffffff, 1.4, 170);
+        cabinetFill.position.set(0, 42, 12);
         scene.add(cabinetFill);
 
-        const cabinetFillLow = new THREE.PointLight(0x88bbff, 0.85, 120);
-        cabinetFillLow.position.set(0, 16, -6);
+        const cabinetFillLow = new THREE.PointLight(0x88bbff, 1.05, 150);
+        cabinetFillLow.position.set(0, 18, -8);
         scene.add(cabinetFillLow);
 
-        const neonCyan = new THREE.PointLight(0x00ffff, 0.85, 240);
-        neonCyan.position.set(60, 50, 60);
+        const neonCyan = new THREE.PointLight(0x00ffff, 1.1, 320);
+        neonCyan.position.set(90, 70, 80);
         scene.add(neonCyan);
 
-        const neonMagenta = new THREE.PointLight(0xff33cc, 0.8, 230);
-        neonMagenta.position.set(-70, 40, -40);
+        const neonMagenta = new THREE.PointLight(0xff33cc, 1.05, 300);
+        neonMagenta.position.set(-90, 60, -60);
         scene.add(neonMagenta);
+
+        const overhead = new THREE.PointLight(0xffffff, 1.2, 420);
+        overhead.position.set(0, 140, 0);
+        scene.add(overhead);
+
+        const rimWarm = new THREE.PointLight(0xffaa88, 0.9, 260);
+        rimWarm.position.set(-120, 45, 120);
+        scene.add(rimWarm);
+
+        const rimCool = new THREE.PointLight(0x88ccff, 0.9, 260);
+        rimCool.position.set(120, 55, -120);
+        scene.add(rimCool);
 
         // Light Manager
         class LightManager {
