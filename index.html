@@ -368,13 +368,13 @@
 
         // Lights
         // Lights
-        scene.background = new THREE.Color(0x05050a);
-        scene.fog = new THREE.FogExp2(0x05050a, 0.012);
+        scene.background = new THREE.Color(0x0b0b18);
+        scene.fog = new THREE.FogExp2(0x0b0b18, 0.007);
 
-        scene.add(new THREE.AmbientLight(0x404040));
-        scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 0.45));
+        scene.add(new THREE.AmbientLight(0x666666, 1.2));
+        scene.add(new THREE.HemisphereLight(0xffffdd, 0x202040, 0.7));
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
         dirLight.position.set(100, 200, 100);
         dirLight.castShadow = false;
         scene.add(dirLight);
@@ -385,8 +385,8 @@
         const floorCtx = floorCanvas.getContext('2d');
         if (floorCtx) {
             const grad = floorCtx.createLinearGradient(0, 0, 0, 256);
-            grad.addColorStop(0, '#070712');
-            grad.addColorStop(1, '#020208');
+            grad.addColorStop(0, '#0f0f24');
+            grad.addColorStop(1, '#05050d');
             floorCtx.fillStyle = grad;
             floorCtx.fillRect(0, 0, 256, 256);
             floorCtx.strokeStyle = 'rgba(0, 255, 255, 0.14)';
@@ -423,9 +423,9 @@
         const backCtx = backdropCanvas.getContext('2d');
         if (backCtx) {
             const backGrad = backCtx.createLinearGradient(0, 0, 0, 256);
-            backGrad.addColorStop(0, '#0d0d26');
-            backGrad.addColorStop(0.5, '#070714');
-            backGrad.addColorStop(1, '#020208');
+            backGrad.addColorStop(0, '#1a1a3d');
+            backGrad.addColorStop(0.5, '#0f0f24');
+            backGrad.addColorStop(1, '#05050d');
             backCtx.fillStyle = backGrad;
             backCtx.fillRect(0, 0, 16, 256);
         }
@@ -452,26 +452,34 @@
         }
         const dustGeo = new THREE.BufferGeometry();
         dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-        const dustMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.35, depthWrite: false });
+        const dustMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.45, depthWrite: false });
         const dust = new THREE.Points(dustGeo, dustMat);
         scene.add(dust);
 
         // Arcade Cabinet Internal SpotLight
-        const spotLight = new THREE.SpotLight(0xffaa00, 2.0);
-        spotLight.position.set(0, 60, 0);
-        spotLight.angle = Math.PI / 4;
+        const spotLight = new THREE.SpotLight(0xffcc66, 3.2);
+        spotLight.position.set(0, 70, 10);
+        spotLight.angle = Math.PI / 3.2;
         spotLight.penumbra = 0.5;
         spotLight.decay = 2;
-        spotLight.distance = 200;
+        spotLight.distance = 240;
         spotLight.target.position.set(0, 0, 0);
         scene.add(spotLight);
         scene.add(spotLight.target);
 
-        const neonCyan = new THREE.PointLight(0x00ffff, 0.6, 220);
+        const cabinetFill = new THREE.PointLight(0xffffff, 1.1, 140);
+        cabinetFill.position.set(0, 38, 8);
+        scene.add(cabinetFill);
+
+        const cabinetFillLow = new THREE.PointLight(0x88bbff, 0.85, 120);
+        cabinetFillLow.position.set(0, 16, -6);
+        scene.add(cabinetFillLow);
+
+        const neonCyan = new THREE.PointLight(0x00ffff, 0.85, 240);
         neonCyan.position.set(60, 50, 60);
         scene.add(neonCyan);
 
-        const neonMagenta = new THREE.PointLight(0xff33cc, 0.55, 200);
+        const neonMagenta = new THREE.PointLight(0xff33cc, 0.8, 230);
         neonMagenta.position.set(-70, 40, -40);
         scene.add(neonMagenta);
 
@@ -551,7 +559,7 @@
         hole.position.set(-2, -0.5, 2);
         machine.add(hole);
 
-        const glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0xddeeff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
         [[-4, 0], [4, 0], [0, -4], [0, 4]].forEach(([x, z]) => {
             const geo = new THREE.BoxGeometry(x === 0 ? 8 : 0.2, 6, z === 0 ? 8 : 0.2); // Reduced height 8->6
             const mesh = new THREE.Mesh(geo, glassMat);
