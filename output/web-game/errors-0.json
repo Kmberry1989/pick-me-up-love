@@ -1,6 +1,6 @@
 [
   {
     "type": "pageerror",
-    "text": "ReferenceError: Cannot access 'WORLD_SCALE' before initialization"
+    "text": "ReferenceError: Cannot access 'MACHINE_SCALE' before initialization"
   }
 ]

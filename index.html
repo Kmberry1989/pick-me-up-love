@@ -134,6 +134,55 @@
             z-index: 20;
         }
 
+        #coinTray {
+            position: absolute;
+            bottom: 22px;
+            left: 16px;
+            width: 90px;
+            height: 90px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            pointer-events: none;
+        }
+
+        .coin {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff3b0, #f1c453 55%, #a97b1d 100%);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            color: #3b2a05;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        .coin:active {
+            cursor: grabbing;
+        }
+
+        #coinSlotUI {
+            position: absolute;
+            width: 72px;
+            height: 18px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            transform: translate(-50%, -50%) rotate(-12deg);
+            z-index: 28;
+            pointer-events: none;
+        }
+
 
         #catalog h3 {
             margin: 0 0 8px 0;
@@ -215,6 +264,11 @@
 
     <button id="insertCoin">💰 Insert Coin</button>
     <button id="toggleCatalog">🎁 Catalog</button>
+
+    <div id="coinTray">
+        <div id="coinDrag" class="coin">COIN</div>
+    </div>
+    <div id="coinSlotUI"></div>
 
     <div id="zone_joystick"></div>
 
@@ -348,33 +402,42 @@
         };
 
         // Coin insertion
-        document.getElementById('insertCoin').onclick = () => { credits++; turns++; updateUI(); };
+        function addCoin() {
+            credits++;
+            turns++;
+            updateUI();
+            audio.playTone(520, 'square', 0.12);
+        }
+
+        document.getElementById('insertCoin').onclick = addCoin;
 
         // Three.js Setup
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 100, 200);
+        camera.position.set(0, 180, 360);
         const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.shadowMap.enabled = false;
+        const MACHINE_SCALE = 42;
+        const WORLD_SCALE = MACHINE_SCALE;
 
         // Controls
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enablePan = false;
-        controls.minDistance = 90;
-        controls.maxDistance = 420;
+        controls.minDistance = 140;
+        controls.maxDistance = 620;
 
 
         // Lights
         // Lights
-        scene.background = new THREE.Color(0x0b0b18);
-        scene.fog = new THREE.FogExp2(0x0b0b18, 0.007);
+        scene.background = new THREE.Color(0x24243a);
+        scene.fog = new THREE.FogExp2(0x24243a, 0.003);
 
-        scene.add(new THREE.AmbientLight(0x777777, 1.6));
-        scene.add(new THREE.HemisphereLight(0xffffee, 0x2a2a45, 0.9));
+        scene.add(new THREE.AmbientLight(0xbfbfbf, 3.2));
+        scene.add(new THREE.HemisphereLight(0xfffff8, 0x4a4a66, 1.8));
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.8);
         dirLight.position.set(100, 200, 100);
         dirLight.castShadow = false;
         scene.add(dirLight);
@@ -410,7 +473,7 @@
             floorTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         }
         const floor = new THREE.Mesh(
-            new THREE.PlaneGeometry(240, 240),
+            new THREE.PlaneGeometry(MACHINE_SCALE * 12, MACHINE_SCALE * 12),
             new THREE.MeshStandardMaterial({ map: floorTex, metalness: 0.1, roughness: 0.9 })
         );
         floor.rotation.x = -Math.PI / 2;
@@ -427,8 +490,8 @@
             metalness: 0.05,
             side: THREE.DoubleSide
         });
-        const roomSize = 260;
-        const roomHeight = 160;
+        const roomSize = MACHINE_SCALE * 12;
+        const roomHeight = MACHINE_SCALE * 7.5;
         const roomWallGeo = new THREE.PlaneGeometry(roomSize, roomHeight);
         const roomHalf = roomSize / 2;
         const roomWallY = roomHeight / 2;
@@ -466,42 +529,42 @@
         scene.add(dust);
 
         // Arcade Cabinet Internal SpotLight
-        const spotLight = new THREE.SpotLight(0xffdd88, 4.2);
-        spotLight.position.set(0, 85, 15);
-        spotLight.angle = Math.PI / 3.1;
+        const spotLight = new THREE.SpotLight(0xfff2c2, 8.5);
+        spotLight.position.set(0, 140, 30);
+        spotLight.angle = Math.PI / 3.4;
         spotLight.penumbra = 0.5;
         spotLight.decay = 2;
-        spotLight.distance = 280;
+        spotLight.distance = 520;
         spotLight.target.position.set(0, 0, 0);
         scene.add(spotLight);
         scene.add(spotLight.target);
 
-        const cabinetFill = new THREE.PointLight(0xffffff, 1.4, 170);
-        cabinetFill.position.set(0, 42, 12);
+        const cabinetFill = new THREE.PointLight(0xffffff, 2.8, 320);
+        cabinetFill.position.set(0, 70, 25);
         scene.add(cabinetFill);
 
-        const cabinetFillLow = new THREE.PointLight(0x88bbff, 1.05, 150);
-        cabinetFillLow.position.set(0, 18, -8);
+        const cabinetFillLow = new THREE.PointLight(0x88bbff, 2.2, 280);
+        cabinetFillLow.position.set(0, 35, -18);
         scene.add(cabinetFillLow);
 
-        const neonCyan = new THREE.PointLight(0x00ffff, 1.1, 320);
-        neonCyan.position.set(90, 70, 80);
+        const neonCyan = new THREE.PointLight(0x00ffff, 2.5, 680);
+        neonCyan.position.set(150, 120, 140);
         scene.add(neonCyan);
 
-        const neonMagenta = new THREE.PointLight(0xff33cc, 1.05, 300);
-        neonMagenta.position.set(-90, 60, -60);
+        const neonMagenta = new THREE.PointLight(0xff33cc, 2.4, 640);
+        neonMagenta.position.set(-150, 110, -130);
         scene.add(neonMagenta);
 
-        const overhead = new THREE.PointLight(0xffffff, 1.2, 420);
-        overhead.position.set(0, 140, 0);
+        const overhead = new THREE.PointLight(0xffffff, 3.2, 1000);
+        overhead.position.set(0, 240, 0);
         scene.add(overhead);
 
-        const rimWarm = new THREE.PointLight(0xffaa88, 0.9, 260);
-        rimWarm.position.set(-120, 45, 120);
+        const rimWarm = new THREE.PointLight(0xffaa88, 2.0, 560);
+        rimWarm.position.set(-210, 100, 210);
         scene.add(rimWarm);
 
-        const rimCool = new THREE.PointLight(0x88ccff, 0.9, 260);
-        rimCool.position.set(120, 55, -120);
+        const rimCool = new THREE.PointLight(0x88ccff, 2.0, 560);
+        rimCool.position.set(210, 110, -210);
         scene.add(rimCool);
 
         // Light Manager
@@ -549,9 +612,6 @@
         }
         const lights = new LightManager();
 
-
-        const MACHINE_SCALE = 14;
-        const WORLD_SCALE = MACHINE_SCALE;
 
         // Physics
         const world = new CANNON.World();
@@ -703,6 +763,19 @@
         chuteRim.position.set(-2, FLOOR_TOP_Y + 0.12, 2);
         machine.add(chuteRim);
 
+        // Machine base (bottom enclosure)
+        const baseMatDark = new THREE.MeshStandardMaterial({ color: 0x1b1b22, metalness: 0.2, roughness: 0.8 });
+        const baseHeight = 2.2;
+        const base = new THREE.Mesh(new THREE.BoxGeometry(8.4, baseHeight, 8.4), baseMatDark);
+        base.position.set(0, FLOOR_Y - baseHeight / 2 - 0.15, 0);
+        machine.add(base);
+
+        // Coin slot on front face
+        const slotMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x222222, emissiveIntensity: 0.8 });
+        const slot = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.08), slotMat);
+        slot.position.set(0, FLOOR_Y - 0.9, 4.3);
+        machine.add(slot);
+
         // Claw
         const clawGroup = new THREE.Group();
         // Pivot group for physics wiggle
@@ -711,9 +784,17 @@
         clawGroup.position.set(0, CLAW_TOP_Y, 0); // Lower start pos
         machine.add(clawGroup);
 
+        const clawLight = new THREE.PointLight(0xffffff, 2.2, 140);
+        clawLight.position.set(0, -0.6, 0);
+        clawGroup.add(clawLight);
+
         const dropButton = document.getElementById('drop');
         let clawReady = false;
         dropButton.disabled = true;
+        setTimeout(() => {
+            updateCoinHome();
+            resetCoin();
+        }, 0);
 
         // Claw Cord (visual only)
         const cordGeo = new THREE.CylinderGeometry(0.05, 0.05, 1);
@@ -807,7 +888,7 @@
             return { x: 0, z: 0 };
         }
 
-        for (let i = 0; i < 40; i++) {
+        for (let i = 0; i < 80; i++) {
             // 5x absolute scale (relative to original) means 0.5 local scale inside 10x machine
             const b = new THREE.Mesh(
                 new THREE.SphereGeometry(0.15, 16, 16),
@@ -903,6 +984,58 @@
             mode: 'static',
             position: { left: '50%', top: '50%' },
             color: 'red'
+        });
+
+        // Coin drag/drop
+        const coinDragEl = document.getElementById('coinDrag');
+        const coinSlotUI = document.getElementById('coinSlotUI');
+        let coinHome = null;
+        let draggingCoin = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        function updateCoinHome() {
+            const rect = coinDragEl.getBoundingClientRect();
+            coinHome = { x: rect.left, y: rect.top };
+        }
+
+        function resetCoin() {
+            if (!coinHome) updateCoinHome();
+            coinDragEl.style.position = 'absolute';
+            coinDragEl.style.left = `${coinHome.x}px`;
+            coinDragEl.style.top = `${coinHome.y}px`;
+        }
+
+        function checkCoinDrop(x, y) {
+            const slotRect = coinSlotUI.getBoundingClientRect();
+            const inside = x >= slotRect.left && x <= slotRect.right && y >= slotRect.top && y <= slotRect.bottom;
+            if (inside) {
+                addCoin();
+                coinSlotUI.style.borderColor = 'rgba(255, 255, 255, 0.6)';
+                setTimeout(() => coinSlotUI.style.borderColor = 'rgba(255, 255, 255, 0.25)', 250);
+            }
+            resetCoin();
+        }
+
+        coinDragEl.addEventListener('pointerdown', (e) => {
+            draggingCoin = true;
+            coinDragEl.setPointerCapture(e.pointerId);
+            const rect = coinDragEl.getBoundingClientRect();
+            dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            coinDragEl.style.position = 'absolute';
+            coinDragEl.style.left = `${rect.left}px`;
+            coinDragEl.style.top = `${rect.top}px`;
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!draggingCoin) return;
+            coinDragEl.style.left = `${e.clientX - dragOffset.x}px`;
+            coinDragEl.style.top = `${e.clientY - dragOffset.y}px`;
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (!draggingCoin) return;
+            draggingCoin = false;
+            checkCoinDrop(e.clientX, e.clientY);
         });
 
         joystickManager.on('move', (evt, data) => {
@@ -1124,6 +1257,24 @@
             dust.rotation.y += dt * 0.02;
             if (!grabbed) currentSlipRisk = 0;
 
+            // Position coin slot UI over 3D slot
+            if (coinSlotUI) {
+                const joystick = document.getElementById('zone_joystick');
+                const joyRect = joystick.getBoundingClientRect();
+                const x = joyRect.left - 50;
+                const y = joyRect.top + joyRect.height / 2;
+                coinSlotUI.style.left = `${x}px`;
+                coinSlotUI.style.top = `${y}px`;
+            }
+
+            // Aim spotlight at the claw hang point
+            if (spotLight && clawGroup) {
+                const clawWorld = new THREE.Vector3();
+                clawGroup.getWorldPosition(clawWorld);
+                spotLight.target.position.copy(clawWorld);
+                spotLight.target.updateMatrixWorld();
+            }
+
             // Finger Animation
             fingers.forEach(f => {
                 // Interpolate angle
@@ -1336,6 +1487,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            resetCoin();
         }
 
         window.addEventListener('resize', resizeRenderer);
