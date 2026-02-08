@@ -59,3 +59,11 @@ Updates (2026-02-08, later):
 
 Test runs:
 - Not run (manual verification recommended for cabinet visuals and UI changes).
+
+Updates (2026-02-08, latest):
+- Rebuilt cabinet and gantry visuals to match the overhaul layout (scaled to current machine bounds) while keeping the custom claw and gameplay logic.
+- Updated rope/coil/drag-chain visuals and anchors to align with overhaul gantry proportions.
+- Simplified the UI to only the overhaul joystick + drop button.
+
+Test runs:
+- Not run (manual verification recommended).

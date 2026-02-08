@@ -720,22 +720,7 @@
         machine.add(interiorFrontLight);
 
         const baseMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.3, roughness: 0.7 });
-        const interiorFloorTex = floorTexture.clone();
-        interiorFloorTex.repeat.set(2.2, 2.2);
-        interiorFloorTex.anisotropy = floorTexture.anisotropy || 1;
-        interiorFloorTex.needsUpdate = true;
-        const interiorFloorMat = new THREE.MeshStandardMaterial({ map: interiorFloorTex, metalness: 0.05, roughness: 0.85 });
-        const interiorCeilTex = ceilingTexture.clone();
-        interiorCeilTex.repeat.set(1.8, 1.8);
-        interiorCeilTex.anisotropy = ceilingTexture.anisotropy || 1;
-        interiorCeilTex.needsUpdate = true;
-        const interiorCeilMat = new THREE.MeshStandardMaterial({
-            map: interiorCeilTex,
-            metalness: 0.05,
-            roughness: 0.9,
-            emissive: 0x242424,
-            emissiveIntensity: 0.25
-        });
+        const interiorFloorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
 
         // Floor Parts (Hole at corner approx -2 to -4 X, 2 to 4 Z)
         // Main floor right
@@ -795,62 +780,7 @@
         addStaticBox(new CANNON.Vec3(PRIZE_WALL_THICKNESS / 2, PRIZE_WALL_HEIGHT / 2, 4.4), new CANNON.Vec3(4.4, PRIZE_WALL_Y, 0), floorMaterial);
         addStaticBox(new CANNON.Vec3(PRIZE_WALL_THICKNESS / 2, PRIZE_WALL_HEIGHT / 2, 4.4), new CANNON.Vec3(-4.4, PRIZE_WALL_Y, 0), floorMaterial);
 
-        const prizeGlassMat = new THREE.MeshStandardMaterial({ color: 0xddeeff, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
-        const prizeWallLong = new THREE.BoxGeometry(8.8, PRIZE_WALL_HEIGHT, PRIZE_WALL_THICKNESS);
-        const prizeWallShort = new THREE.BoxGeometry(PRIZE_WALL_THICKNESS, PRIZE_WALL_HEIGHT, 8.8);
-        const frontWall = new THREE.Mesh(prizeWallLong, prizeGlassMat);
-        frontWall.position.set(0, PRIZE_WALL_Y, 4.4);
-        machine.add(frontWall);
-        const backWall = new THREE.Mesh(prizeWallLong, prizeGlassMat);
-        backWall.position.set(0, PRIZE_WALL_Y, -4.4);
-        machine.add(backWall);
-        const leftWall = new THREE.Mesh(prizeWallShort, prizeGlassMat);
-        leftWall.position.set(-4.4, PRIZE_WALL_Y, 0);
-        machine.add(leftWall);
-        const rightWall = new THREE.Mesh(prizeWallShort, prizeGlassMat);
-        rightWall.position.set(4.4, PRIZE_WALL_Y, 0);
-        machine.add(rightWall);
-
-        // Machine glass walls removed; room walls now define the environment.
-        const top = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 8), interiorCeilMat);
-        top.position.y = ROOF_Y;
-        machine.add(top);
-
-        const neonStripMat = new THREE.MeshStandardMaterial({
-            color: 0x00ffff,
-            emissive: 0x00ffff,
-            emissiveIntensity: 1.5,
-            metalness: 0.2,
-            roughness: 0.4
-        });
-        const stripLong = new THREE.BoxGeometry(8.2, 0.1, 0.1);
-        const stripShort = new THREE.BoxGeometry(0.1, 0.1, 8.2);
-        [
-            [0, 0.55, 4.05, stripLong],
-            [0, 0.55, -4.05, stripLong],
-            [4.05, 0.55, 0, stripShort],
-            [-4.05, 0.55, 0, stripShort]
-        ].forEach(([x, y, z, geo]) => {
-            const strip = new THREE.Mesh(geo, neonStripMat);
-            strip.position.set(x, y, z);
-            machine.add(strip);
-        });
-
-        // LEDs
-        // LEDs
-        const ledMat = new THREE.MeshStandardMaterial({ emissive: 0x00ffaa, emissiveIntensity: 1.5, color: 0x003300 });
-        const ledGeo = new THREE.CylinderGeometry(0.1, 0.1, 6, 8); // Height reduced 8->6
-        const leds = [[-4, 3, -4], [4, 3, -4], [-4, 3, 4], [4, 3, 4]].map(pos => { // Y pos 4->3
-            const m = new THREE.Mesh(ledGeo, ledMat.clone()); // Clone for individual control
-            m.position.set(...pos);
-            // Vertical by default (Cylinder is Y-axis aligned)
-            machine.add(m);
-            lights.addLed(m);
-            return m;
-        });
-
-
-
+        // Machine glass walls handled by overhaul cabinet visuals.
         // Chute (aligned with hole at -2, 2 in machine coordinates)
         const chuteBaseMat = new THREE.MeshStandardMaterial({ color: 0xffcc33, metalness: 0.2, roughness: 0.6 });
         const chuteGlowMat = new THREE.MeshStandardMaterial({
@@ -867,149 +797,175 @@
         chuteRim.position.set(-2, FLOOR_TOP_Y + 0.12, 2);
         machine.add(chuteRim);
 
-        // Cabinet (overhaul-style)
-        const cabinetMetalMat = new THREE.MeshStandardMaterial({ color: 0xff4757, roughness: 0.3, metalness: 0.4 });
-        const cabinetChromeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1, metalness: 0.9 });
-        const cabinetGlassMat = new THREE.MeshPhysicalMaterial({
+        // Cabinet + gantry (overhaul layout, scaled to current machine units)
+        const OVERHAUL_SCALE = 8.8 / 90;
+        const OVERHAUL_FLOOR_Y = -40;
+        const OVERHAUL_OFFSET_Y = FLOOR_Y - (OVERHAUL_FLOOR_Y * OVERHAUL_SCALE);
+        const o = (v) => v * OVERHAUL_SCALE;
+        const oy = (v) => v * OVERHAUL_SCALE + OVERHAUL_OFFSET_Y;
+        const GANTRY_Y = oy(80);
+
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+        const glassMat = new THREE.MeshPhysicalMaterial({
             color: 0xffffff,
-            transmission: 0.9,
-            opacity: 0.15,
+            transmission: 0.95,
+            opacity: 0.1,
             transparent: true,
-            roughness: 0.08,
+            roughness: 0.05,
             metalness: 0.1,
             clearcoat: 1.0,
             clearcoatRoughness: 0.0
         });
-        const cabinetFloorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+        const metalMat = new THREE.MeshStandardMaterial({ color: 0xff4757, roughness: 0.3, metalness: 0.4 });
+        const chromeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1, metalness: 0.9 });
         const railMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 });
-        const CABINET_WIDTH = 9.2;
-        const CABINET_DEPTH = 9.2;
-        const CABINET_FLOOR_Y = FLOOR_Y - 0.15;
-        const CABINET_TOP_Y = ROOF_Y + 0.8;
-        const CABINET_HEIGHT = CABINET_TOP_Y - CABINET_FLOOR_Y;
 
-        const cabinetFloor = new THREE.Mesh(new THREE.BoxGeometry(CABINET_WIDTH, 0.35, CABINET_DEPTH), cabinetFloorMat);
-        cabinetFloor.position.y = CABINET_FLOOR_Y;
+        const cabinetFloor = new THREE.Mesh(new THREE.BoxGeometry(o(100), o(4), o(100)), floorMat);
+        cabinetFloor.position.y = oy(-40);
         machine.add(cabinetFloor);
 
-        const cabinetCeiling = new THREE.Mesh(new THREE.BoxGeometry(CABINET_WIDTH, 0.35, CABINET_DEPTH), cabinetMetalMat);
-        cabinetCeiling.position.y = CABINET_TOP_Y;
+        const cabinetCeiling = new THREE.Mesh(new THREE.BoxGeometry(o(100), o(4), o(100)), metalMat);
+        cabinetCeiling.position.y = oy(90);
         machine.add(cabinetCeiling);
 
-        const marquee = new THREE.Mesh(new THREE.BoxGeometry(CABINET_WIDTH + 0.4, 1.2, CABINET_DEPTH + 0.4), cabinetMetalMat);
-        marquee.position.y = CABINET_TOP_Y + 0.9;
+        const marquee = new THREE.Mesh(new THREE.BoxGeometry(o(104), o(16), o(104)), metalMat);
+        marquee.position.y = oy(100);
         machine.add(marquee);
+
         const glowMat = new THREE.MeshBasicMaterial({ color: 0xffd27a });
-        const glowWidth = CABINET_WIDTH - 0.9;
-        const glowHeight = 0.55;
-        const frontGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
-        frontGlow.position.set(0, CABINET_TOP_Y + 0.9, CABINET_DEPTH / 2 + 0.28);
+        const frontGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
+        frontGlow.position.set(0, oy(100), o(53));
         machine.add(frontGlow);
-        const backGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
-        backGlow.position.set(0, CABINET_TOP_Y + 0.9, -CABINET_DEPTH / 2 - 0.28);
+        const backGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
+        backGlow.position.set(0, oy(100), o(-53));
         backGlow.rotation.y = Math.PI;
         machine.add(backGlow);
-        const leftGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
-        leftGlow.position.set(-CABINET_WIDTH / 2 - 0.28, CABINET_TOP_Y + 0.9, 0);
+        const leftGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
+        leftGlow.position.set(o(-53), oy(100), 0);
         leftGlow.rotation.y = -Math.PI / 2;
         machine.add(leftGlow);
-        const rightGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
-        rightGlow.position.set(CABINET_WIDTH / 2 + 0.28, CABINET_TOP_Y + 0.9, 0);
+        const rightGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
+        rightGlow.position.set(o(53), oy(100), 0);
         rightGlow.rotation.y = Math.PI / 2;
         machine.add(rightGlow);
 
-        const pillarGeo = new THREE.BoxGeometry(0.36, CABINET_HEIGHT + 0.6, 0.36);
-        const pillarPositions = [
-            [-CABINET_WIDTH / 2 + 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, -CABINET_DEPTH / 2 + 0.25],
-            [CABINET_WIDTH / 2 - 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, -CABINET_DEPTH / 2 + 0.25],
-            [-CABINET_WIDTH / 2 + 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, CABINET_DEPTH / 2 - 0.25],
-            [CABINET_WIDTH / 2 - 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, CABINET_DEPTH / 2 - 0.25]
-        ];
-        pillarPositions.forEach((pos) => {
-            const p = new THREE.Mesh(pillarGeo, cabinetMetalMat);
-            p.position.set(pos[0], pos[1], pos[2]);
+        const pillarGeo = new THREE.BoxGeometry(o(4), o(130), o(4));
+        const pillarPositions = [[-48, 25, -48], [48, 25, -48], [-48, 25, 48], [48, 25, 48]];
+        pillarPositions.forEach(pos => {
+            const p = new THREE.Mesh(pillarGeo, metalMat);
+            p.position.set(o(pos[0]), oy(pos[1]), o(pos[2]));
             machine.add(p);
-            const cap = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.6), cabinetChromeMat);
-            cap.position.set(pos[0], CABINET_TOP_Y + 0.2, pos[2]);
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(o(6), o(2), o(6)), chromeMat);
+            cap.position.set(o(pos[0]), oy(90), o(pos[2]));
             machine.add(cap);
-            const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.6), cabinetChromeMat);
-            base.position.set(pos[0], CABINET_FLOOR_Y - 0.1, pos[2]);
+            const base = new THREE.Mesh(new THREE.BoxGeometry(o(6), o(2), o(6)), chromeMat);
+            base.position.set(o(pos[0]), oy(-38), o(pos[2]));
             machine.add(base);
         });
 
-        const glassW = CABINET_WIDTH - 0.8;
-        const glassH = CABINET_HEIGHT - 0.6;
-        const glassY = CABINET_FLOOR_Y + glassH / 2 + 0.1;
-        const frontGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
-        frontGlass.position.set(0, glassY, CABINET_DEPTH / 2 - 0.05);
-        machine.add(frontGlass);
-        const backGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
-        backGlass.position.set(0, glassY, -CABINET_DEPTH / 2 + 0.05);
-        backGlass.rotation.y = Math.PI;
+        const backGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
+        backGlass.position.set(0, oy(25), o(-48));
         machine.add(backGlass);
-        const leftGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
-        leftGlass.position.set(-CABINET_WIDTH / 2 + 0.05, glassY, 0);
+        const leftGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
         leftGlass.rotation.y = Math.PI / 2;
+        leftGlass.position.set(o(-48), oy(25), 0);
         machine.add(leftGlass);
-        const rightGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
-        rightGlass.position.set(CABINET_WIDTH / 2 - 0.05, glassY, 0);
+        const rightGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
         rightGlass.rotation.y = -Math.PI / 2;
+        rightGlass.position.set(o(48), oy(25), 0);
         machine.add(rightGlass);
+        const frontGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
+        frontGlass.position.set(0, oy(25), o(48));
+        machine.add(frontGlass);
 
-        const sideRailGeo = new THREE.CylinderGeometry(0.08, 0.08, CABINET_DEPTH - 0.6, 12);
+        const sideRailGeo = new THREE.CylinderGeometry(o(0.8), o(0.8), o(94), 12);
         sideRailGeo.rotateX(Math.PI / 2);
-        const leftRail = new THREE.Mesh(sideRailGeo, railMat);
-        leftRail.position.set(-CABINET_WIDTH / 2 + 0.1, CABINET_TOP_Y - 0.6, 0);
-        machine.add(leftRail);
-        const rightRail = new THREE.Mesh(sideRailGeo, railMat);
-        rightRail.position.set(CABINET_WIDTH / 2 - 0.1, CABINET_TOP_Y - 0.6, 0);
-        machine.add(rightRail);
+        const leftSideRail = new THREE.Mesh(sideRailGeo, railMat);
+        leftSideRail.position.set(o(-49), oy(73.7), 0);
+        machine.add(leftSideRail);
+        const rightSideRail = new THREE.Mesh(sideRailGeo, railMat);
+        rightSideRail.position.set(o(49), oy(73.7), 0);
+        machine.add(rightSideRail);
 
         const chuteGroup = new THREE.Group();
-        const chuteWallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        const chuteSize = 3.0;
-        const chuteWall = 0.18;
-        const chuteH = 0.6;
-        const cw1 = new THREE.Mesh(new THREE.BoxGeometry(chuteSize, chuteH, chuteWall), chuteWallMat);
-        cw1.position.z = -chuteSize / 2;
-        const cw2 = new THREE.Mesh(new THREE.BoxGeometry(chuteSize, chuteH, chuteWall), chuteWallMat);
-        cw2.position.z = chuteSize / 2;
-        const cw3 = new THREE.Mesh(new THREE.BoxGeometry(chuteWall, chuteH, chuteSize), chuteWallMat);
-        cw3.position.x = chuteSize / 2;
-        const cw4 = new THREE.Mesh(new THREE.BoxGeometry(chuteWall, chuteH, chuteSize), chuteWallMat);
-        cw4.position.x = -chuteSize / 2;
-        chuteGroup.add(cw1, cw2, cw3, cw4);
-        const chuteHole = new THREE.Mesh(new THREE.BoxGeometry(chuteSize - 0.3, 0.08, chuteSize - 0.3), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-        chuteHole.position.y = -0.2;
-        chuteGroup.add(chuteHole);
-        chuteGroup.position.set(-2, FLOOR_Y + 0.45, 2);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const w1 = new THREE.Mesh(new THREE.BoxGeometry(o(32), o(10), o(2)), wallMat); w1.position.z = o(-16);
+        const w2 = new THREE.Mesh(new THREE.BoxGeometry(o(32), o(10), o(2)), wallMat); w2.position.z = o(16);
+        const w3 = new THREE.Mesh(new THREE.BoxGeometry(o(2), o(10), o(32)), wallMat); w3.position.x = o(16);
+        const w4 = new THREE.Mesh(new THREE.BoxGeometry(o(2), o(10), o(32)), wallMat); w4.position.x = o(-16);
+        chuteGroup.add(w1, w2, w3, w4);
+        const hole = new THREE.Mesh(new THREE.BoxGeometry(o(30), o(2), o(30)), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        hole.position.y = o(-4);
+        chuteGroup.add(hole);
+        chuteGroup.position.set(o(-34), oy(-33), o(34));
         machine.add(chuteGroup);
 
-        const retrievalBox = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 2.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-        retrievalBox.position.set(0, CABINET_FLOOR_Y - 1.4, CABINET_DEPTH / 2 + 1.2);
+        const retrievalBox = new THREE.Mesh(new THREE.BoxGeometry(o(30), o(20), o(30)), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        retrievalBox.position.set(o(-34), oy(-60), o(40));
         machine.add(retrievalBox);
-        const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.4, 0.2), cabinetMetalMat);
-        doorFrame.position.set(0, CABINET_FLOOR_Y - 1.4, CABINET_DEPTH / 2 + 1.7);
+
+        const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(o(40), o(30), o(2)), metalMat);
+        doorFrame.position.set(0, oy(-60), o(50));
         machine.add(doorFrame);
-        const doorFlap = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.8, 0.15), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 }));
-        doorFlap.position.set(0, CABINET_FLOOR_Y - 1.4, CABINET_DEPTH / 2 + 1.85);
+        const doorFlap = new THREE.Mesh(new THREE.BoxGeometry(o(34), o(24), o(2)), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 }));
+        doorFlap.position.set(0, oy(-60), o(51));
         doorFlap.rotation.x = -0.2;
         machine.add(doorFlap);
 
-        const gantryMat = new THREE.MeshStandardMaterial({ color: 0x3b3e4a, metalness: 0.5, roughness: 0.4 });
+        // Gantry (overhaul)
+        const railMatG = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 });
+        const carriageMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.7 });
+        const aluminumMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, metalness: 0.5, roughness: 0.5 });
+        const beltMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        const motorBodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
+
         gantryBridge = new THREE.Group();
-        const bridgeX = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.18, 0.6), gantryMat);
-        bridgeX.position.set(0, ROOF_Y + 0.25, 0);
-        const bridgeZ = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.18, 8.8), gantryMat);
-        bridgeZ.position.set(0, ROOF_Y + 0.25, 0);
-        gantryBridge.add(bridgeX, bridgeZ);
+        const endPlateGeo = new THREE.BoxGeometry(o(1), o(10), o(12));
+        const leftPlate = new THREE.Mesh(endPlateGeo, aluminumMat); leftPlate.position.x = o(-48);
+        const rightPlate = new THREE.Mesh(endPlateGeo, aluminumMat); rightPlate.position.x = o(48);
+        const wheelGeo = new THREE.CylinderGeometry(o(1.5), o(1.5), o(1), 16); wheelGeo.rotateZ(Math.PI / 2);
+        const lw1 = new THREE.Mesh(wheelGeo, aluminumMat); lw1.position.set(o(-49), o(-4), o(4));
+        const lw2 = new THREE.Mesh(wheelGeo, aluminumMat); lw2.position.set(o(-49), o(-4), o(-4));
+        const rw1 = new THREE.Mesh(wheelGeo, aluminumMat); rw1.position.set(o(49), o(-4), o(4));
+        const rw2 = new THREE.Mesh(wheelGeo, aluminumMat); rw2.position.set(o(49), o(-4), o(-4));
+        gantryBridge.add(leftPlate, rightPlate, lw1, lw2, rw1, rw2);
+        const railGeo = new THREE.CylinderGeometry(o(0.5), o(0.5), o(96), 12); railGeo.rotateZ(Math.PI / 2);
+        const rail1 = new THREE.Mesh(railGeo, railMatG); rail1.position.z = o(-3);
+        const rail2 = new THREE.Mesh(railGeo, railMatG); rail2.position.z = o(3);
+        const mountGeo = new THREE.BoxGeometry(o(2), o(3), o(2));
+        const m1 = new THREE.Mesh(mountGeo, aluminumMat); m1.position.set(o(-47), 0, o(-3));
+        const m2 = new THREE.Mesh(mountGeo, aluminumMat); m2.position.set(o(47), 0, o(-3));
+        const m3 = new THREE.Mesh(mountGeo, aluminumMat); m3.position.set(o(-47), 0, o(3));
+        const m4 = new THREE.Mesh(mountGeo, aluminumMat); m4.position.set(o(47), 0, o(3));
+        gantryBridge.add(rail1, rail2, m1, m2, m3, m4);
+        const nemaGeo = new THREE.BoxGeometry(o(4), o(4), o(4));
+        const motorBody = new THREE.Mesh(nemaGeo, motorBodyMat); motorBody.position.set(o(-44), o(2), o(-5)); gantryBridge.add(motorBody);
+        const beltLoopGeo = new THREE.BoxGeometry(o(88), o(0.2), o(0.5));
+        const beltTop = new THREE.Mesh(beltLoopGeo, beltMat); beltTop.position.set(0, o(2.5), o(-4));
+        const beltBot = new THREE.Mesh(beltLoopGeo, beltMat); beltBot.position.set(0, o(1.5), o(-4));
+        gantryBridge.add(beltTop, beltBot);
+        const pulleyGeo = new THREE.CylinderGeometry(o(0.8), o(0.8), o(0.6), 16);
+        const p1 = new THREE.Mesh(pulleyGeo, aluminumMat); p1.position.set(o(-44), o(2), o(-4));
+        const p2 = new THREE.Mesh(pulleyGeo, aluminumMat); p2.position.set(o(44), o(2), o(-4));
+        gantryBridge.add(p1, p2);
+        gantryBridge.position.y = GANTRY_Y;
         machine.add(gantryBridge);
 
         gantryCarriage = new THREE.Group();
-        const carriageBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 1.4), gantryMat);
-        carriageBody.position.set(0, 0, 0);
-        gantryCarriage.add(carriageBody);
-        machine.add(gantryCarriage);
+        const carriageBody = new THREE.Mesh(new THREE.BoxGeometry(o(8), o(2), o(9)), carriageMat); gantryCarriage.add(carriageBody);
+        const bearingGeo = new THREE.CylinderGeometry(o(1), o(1), o(3), 12); bearingGeo.rotateZ(Math.PI / 2);
+        const b1 = new THREE.Mesh(bearingGeo, aluminumMat); b1.position.set(o(-2), o(-1), o(3));
+        const b2 = new THREE.Mesh(bearingGeo, aluminumMat); b2.position.set(o(2), o(-1), o(3));
+        const b3 = new THREE.Mesh(bearingGeo, aluminumMat); b3.position.set(o(-2), o(-1), o(-3));
+        const b4 = new THREE.Mesh(bearingGeo, aluminumMat); b4.position.set(o(2), o(-1), o(-3));
+        gantryCarriage.add(b1, b2, b3, b4);
+        const clampGeo = new THREE.BoxGeometry(o(2), o(1), o(1));
+        const clamp = new THREE.Mesh(clampGeo, aluminumMat); clamp.position.set(0, o(1), o(-4)); gantryCarriage.add(clamp);
+        const spoolGeo = new THREE.CylinderGeometry(o(1.5), o(1.5), o(4), 16); spoolGeo.rotateX(Math.PI / 2);
+        const spool = new THREE.Mesh(spoolGeo, new THREE.MeshStandardMaterial({ color: 0xffffff })); spool.position.set(0, o(2), 0); gantryCarriage.add(spool);
+        const grommet = new THREE.Mesh(new THREE.TorusGeometry(o(0.5), o(0.1), 8, 16), aluminumMat); grommet.rotation.x = Math.PI / 2; grommet.position.y = o(-1.1); gantryCarriage.add(grommet);
+        const zMotorBody = new THREE.Mesh(new THREE.BoxGeometry(o(3), o(3), o(3)), motorBodyMat); zMotorBody.position.set(o(3), o(2.5), o(2)); gantryCarriage.add(zMotorBody);
+        gantryBridge.add(gantryCarriage);
 
         const WIGGLE_STIFFNESS = 0.015;
         const WIGGLE_DAMPING = 0.98;
@@ -1032,30 +988,30 @@
         clawGroup.add(clawLight);
 
         const ropeContainer = new THREE.Group();
-        const ropeGeo = new THREE.CylinderGeometry(0.04, 0.04, 1);
+        const ropeGeo = new THREE.CylinderGeometry(o(0.15), o(0.15), 1);
         ropeGeo.rotateX(-Math.PI / 2);
         ropeGeo.translate(0, 0, 0.5);
-        const ropeBody = new THREE.Mesh(ropeGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
+        const ropeBody = new THREE.Mesh(ropeGeo, new THREE.MeshBasicMaterial({ color: 0x111111 }));
         ropeContainer.add(ropeBody);
         ropeMesh = ropeContainer;
         machine.add(ropeMesh);
 
         class HelixCurve extends THREE.Curve {
             getPoint(t) {
-                const loops = 10;
+                const loops = 12;
                 const angle = t * Math.PI * 2 * loops;
-                const radius = 0.25;
+                const radius = o(0.8);
                 const x = radius * Math.cos(angle);
                 const z = radius * Math.sin(angle);
-                const y = -t * 3.2;
+                const y = -t * o(20);
                 return new THREE.Vector3(x, y, z);
             }
         }
         const coilPath = new HelixCurve();
-        const coilGeo = new THREE.TubeGeometry(coilPath, 96, 0.06, 6, false);
+        const coilGeo = new THREE.TubeGeometry(coilPath, 128, o(0.15), 6, false);
         coilGeo.rotateX(-Math.PI / 2);
-        coilGeo.translate(0, 0, 1.6);
-        const coilBody = new THREE.Mesh(coilGeo, new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.9 }));
+        coilGeo.translate(0, 0, o(10));
+        const coilBody = new THREE.Mesh(coilGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
         const coilContainer = new THREE.Group();
         coilContainer.add(coilBody);
         coilMesh = coilContainer;
@@ -1066,8 +1022,8 @@
             new THREE.Vector3(0, 0, 0),
             new THREE.Vector3(0, 0, 0)
         ]);
-        const chainGeo = new THREE.TubeGeometry(chainPath, 12, 0.08, 4, false);
-        dragChainMesh = new THREE.Mesh(chainGeo, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 }));
+        const chainGeo = new THREE.TubeGeometry(chainPath, 16, o(0.8), 4, false);
+        dragChainMesh = new THREE.Mesh(chainGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
         machine.add(dragChainMesh);
 
         // Confetti for win feedback
@@ -1744,32 +1700,32 @@
             clawGroup.rotation.x = (clawTarget.z - clawPos.z) * 0.12;
 
             if (gantryCarriage) {
-                gantryCarriage.position.set(clawTarget.x, ROOF_Y + 0.2, clawTarget.z);
+                gantryCarriage.position.set(clawTarget.x, GANTRY_Y, clawTarget.z);
             }
 
             if (ropeMesh && coilMesh) {
-                const hookOffset = 0.7;
-                const anchorVec = new THREE.Vector3(clawTarget.x, ROOF_Y + 0.2, clawTarget.z);
+                const hookOffset = o(7);
+                const anchorVec = new THREE.Vector3(clawTarget.x, GANTRY_Y, clawTarget.z);
                 const clawVec = new THREE.Vector3(clawGroup.position.x, clawGroup.position.y + hookOffset, clawGroup.position.z);
                 ropeMesh.position.copy(anchorVec);
                 ropeMesh.lookAt(clawVec);
                 ropeMesh.scale.z = anchorVec.distanceTo(clawVec);
 
-                const coilAnchor = anchorVec.clone().add(new THREE.Vector3(0.3, 0, 0.3));
-                const coilClaw = clawVec.clone().add(new THREE.Vector3(0.3, 0, 0.3));
+                const coilAnchor = anchorVec.clone().add(new THREE.Vector3(o(3), 0, o(3)));
+                const coilClaw = clawVec.clone().add(new THREE.Vector3(o(3), 0, o(3)));
                 coilMesh.position.copy(coilAnchor);
                 coilMesh.lookAt(coilClaw);
-                coilMesh.scale.set(1, 1, Math.max(0.2, coilAnchor.distanceTo(coilClaw) / 2.2));
+                coilMesh.scale.set(1, 1, Math.max(o(0.1), coilAnchor.distanceTo(coilClaw) / o(20)));
             }
 
             if (dragChainMesh) {
-                const start = new THREE.Vector3(-4.6, ROOF_Y + 0.3, clawTarget.z);
-                const end = new THREE.Vector3(clawTarget.x, ROOF_Y + 0.3, clawTarget.z);
+                const start = new THREE.Vector3(o(-48), oy(82), clawTarget.z);
+                const end = new THREE.Vector3(clawTarget.x, oy(82), clawTarget.z);
                 const mid = start.clone().lerp(end, 0.5);
-                mid.y += 1.2;
+                mid.y += o(10);
                 dragChainMesh.geometry.dispose();
                 const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-                dragChainMesh.geometry = new THREE.TubeGeometry(curve, 10, 0.08, 4, false);
+                dragChainMesh.geometry = new THREE.TubeGeometry(curve, 10, o(0.8), 4, false);
             }
 
             // Grabbed Object Sync
