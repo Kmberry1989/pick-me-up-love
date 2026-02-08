@@ -351,50 +351,15 @@
 </head>
 
 <body>
-    <div id="fade-overlay"></div>
-    <div id="winBanner">JACKPOT!</div>
-
-    <button id="insertCoin">💰 Insert Coin</button>
-    <button id="toggleCatalog">🎁 Catalog</button>
-
     <div id="ui-layer">
         <div class="control-panel">
-            <div class="display-group">
-                <div class="lcd-label">Credits</div>
-                <div class="display"><div class="lcd-val" id="creditDisplay">0</div></div>
-            </div>
-
-            <div id="coinTray" class="panel-coin">
-                <div id="coinDrag" class="coin">COIN</div>
-            </div>
-            <div id="coinSlotUI"></div>
-
             <div id="joystick-zone">
                 <div id="joystick-stick"></div>
                 <div id="joystick-knob"></div>
             </div>
 
             <button class="btn-action" id="dropBtn">DROP</button>
-
-            <div class="display-group compact">
-                <div class="lcd-label">Prizes</div>
-                <div class="display"><div class="lcd-val" id="prizeDisplay">0</div></div>
-            </div>
-
-            <div class="display-group compact">
-                <div class="lcd-label">Tickets</div>
-                <div class="display"><div class="lcd-val" id="ticketDisplay">0</div></div>
-            </div>
-
-            <div class="display-group compact">
-                <div class="lcd-label">Turns</div>
-                <div class="display"><div class="lcd-val" id="turnDisplay">0</div></div>
-            </div>
         </div>
-    </div>
-
-    <div id="catalog">
-        <h3>Prize Catalog</h3>
     </div>
     <canvas></canvas>
     <script type="module">
@@ -482,64 +447,16 @@
         const prizeDisplay = document.getElementById('prizeDisplay');
         const ticketDisplay = document.getElementById('ticketDisplay');
         const turnDisplay = document.getElementById('turnDisplay');
-        const catalogEl = document.getElementById('catalog');
-        const catalogBtn = document.getElementById('toggleCatalog');
-        const fadeOverlay = document.getElementById('fade-overlay');
 
         // Game State
         const testMode = new URLSearchParams(window.location.search).get('test') === '1';
         let prizeCount = 0, freeTurns = 0, turns = 5, credits = 0, tickets = 0;
-        const catalog = [
-            { name: 'Stuffed Bear', cost: 50 },
-            { name: 'Toy Car', cost: 30 },
-            { name: 'Keychain', cost: 15 }
-        ];
-
         function updateUI() {
             if (creditDisplay) creditDisplay.textContent = credits;
             if (prizeDisplay) prizeDisplay.textContent = prizeCount;
             if (ticketDisplay) ticketDisplay.textContent = tickets;
             if (turnDisplay) turnDisplay.textContent = turns;
         }
-
-        if (fadeOverlay) {
-            requestAnimationFrame(() => {
-                fadeOverlay.style.opacity = '0';
-                setTimeout(() => { fadeOverlay.style.display = 'none'; }, 3200);
-            });
-        }
-
-        // Populate catalog
-        catalog.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'catalog-item';
-            div.innerHTML = `${item.name} <span>${item.cost}</span>`;
-            div.onclick = () => {
-                if (tickets >= item.cost) {
-                    tickets -= item.cost;
-                    alert(`Redeemed ${item.name}!`);
-                    updateUI();
-                } else alert('Not enough tickets');
-            };
-            catalogEl.appendChild(div);
-        });
-
-        catalogBtn.onclick = () => {
-            const isHidden = window.getComputedStyle(catalogEl).display === 'none';
-            catalogEl.style.display = isHidden ? 'block' : 'none';
-        };
-
-        // Coin insertion (drag to slot only)
-        function addCoin() {
-            credits++;
-            turns++;
-            updateUI();
-            audio.playTone(520, 'square', 0.12);
-        }
-
-        document.getElementById('insertCoin').onclick = () => {
-            alert('Drag the coin to the slot to add credits!');
-        };
 
         // Three.js Setup
         const scene = new THREE.Scene();
@@ -831,11 +748,6 @@
         f2.position.set(-2, FLOOR_Y, -2);
         machine.add(f2);
 
-        // Chute "Hole" visual (black box below)
-        const hole = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.2, 3.8), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-        hole.position.set(-2, FLOOR_Y - 0.35, 2);
-        machine.add(hole);
-
         function toWorld(v) {
             return new CANNON.Vec3(v.x * WORLD_SCALE, v.y * WORLD_SCALE, v.z * WORLD_SCALE);
         }
@@ -955,18 +867,134 @@
         chuteRim.position.set(-2, FLOOR_TOP_Y + 0.12, 2);
         machine.add(chuteRim);
 
-        // Machine base (bottom enclosure)
-        const baseMatDark = new THREE.MeshStandardMaterial({ color: 0x1b1b22, metalness: 0.2, roughness: 0.8 });
-        const baseHeight = 2.2;
-        const base = new THREE.Mesh(new THREE.BoxGeometry(8.4, baseHeight, 8.4), baseMatDark);
-        base.position.set(0, FLOOR_Y - baseHeight / 2 - 0.15, 0);
-        machine.add(base);
+        // Cabinet (overhaul-style)
+        const cabinetMetalMat = new THREE.MeshStandardMaterial({ color: 0xff4757, roughness: 0.3, metalness: 0.4 });
+        const cabinetChromeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1, metalness: 0.9 });
+        const cabinetGlassMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            transmission: 0.9,
+            opacity: 0.15,
+            transparent: true,
+            roughness: 0.08,
+            metalness: 0.1,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.0
+        });
+        const cabinetFloorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+        const railMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 });
+        const CABINET_WIDTH = 9.2;
+        const CABINET_DEPTH = 9.2;
+        const CABINET_FLOOR_Y = FLOOR_Y - 0.15;
+        const CABINET_TOP_Y = ROOF_Y + 0.8;
+        const CABINET_HEIGHT = CABINET_TOP_Y - CABINET_FLOOR_Y;
 
-        // Coin slot on front face
-        const slotMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x222222, emissiveIntensity: 0.8 });
-        const slot = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.08), slotMat);
-        slot.position.set(0, FLOOR_Y - 0.9, 4.3);
-        machine.add(slot);
+        const cabinetFloor = new THREE.Mesh(new THREE.BoxGeometry(CABINET_WIDTH, 0.35, CABINET_DEPTH), cabinetFloorMat);
+        cabinetFloor.position.y = CABINET_FLOOR_Y;
+        machine.add(cabinetFloor);
+
+        const cabinetCeiling = new THREE.Mesh(new THREE.BoxGeometry(CABINET_WIDTH, 0.35, CABINET_DEPTH), cabinetMetalMat);
+        cabinetCeiling.position.y = CABINET_TOP_Y;
+        machine.add(cabinetCeiling);
+
+        const marquee = new THREE.Mesh(new THREE.BoxGeometry(CABINET_WIDTH + 0.4, 1.2, CABINET_DEPTH + 0.4), cabinetMetalMat);
+        marquee.position.y = CABINET_TOP_Y + 0.9;
+        machine.add(marquee);
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffd27a });
+        const glowWidth = CABINET_WIDTH - 0.9;
+        const glowHeight = 0.55;
+        const frontGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
+        frontGlow.position.set(0, CABINET_TOP_Y + 0.9, CABINET_DEPTH / 2 + 0.28);
+        machine.add(frontGlow);
+        const backGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
+        backGlow.position.set(0, CABINET_TOP_Y + 0.9, -CABINET_DEPTH / 2 - 0.28);
+        backGlow.rotation.y = Math.PI;
+        machine.add(backGlow);
+        const leftGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
+        leftGlow.position.set(-CABINET_WIDTH / 2 - 0.28, CABINET_TOP_Y + 0.9, 0);
+        leftGlow.rotation.y = -Math.PI / 2;
+        machine.add(leftGlow);
+        const rightGlow = new THREE.Mesh(new THREE.PlaneGeometry(glowWidth, glowHeight), glowMat);
+        rightGlow.position.set(CABINET_WIDTH / 2 + 0.28, CABINET_TOP_Y + 0.9, 0);
+        rightGlow.rotation.y = Math.PI / 2;
+        machine.add(rightGlow);
+
+        const pillarGeo = new THREE.BoxGeometry(0.36, CABINET_HEIGHT + 0.6, 0.36);
+        const pillarPositions = [
+            [-CABINET_WIDTH / 2 + 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, -CABINET_DEPTH / 2 + 0.25],
+            [CABINET_WIDTH / 2 - 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, -CABINET_DEPTH / 2 + 0.25],
+            [-CABINET_WIDTH / 2 + 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, CABINET_DEPTH / 2 - 0.25],
+            [CABINET_WIDTH / 2 - 0.25, CABINET_FLOOR_Y + (CABINET_HEIGHT + 0.6) / 2, CABINET_DEPTH / 2 - 0.25]
+        ];
+        pillarPositions.forEach((pos) => {
+            const p = new THREE.Mesh(pillarGeo, cabinetMetalMat);
+            p.position.set(pos[0], pos[1], pos[2]);
+            machine.add(p);
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.6), cabinetChromeMat);
+            cap.position.set(pos[0], CABINET_TOP_Y + 0.2, pos[2]);
+            machine.add(cap);
+            const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.6), cabinetChromeMat);
+            base.position.set(pos[0], CABINET_FLOOR_Y - 0.1, pos[2]);
+            machine.add(base);
+        });
+
+        const glassW = CABINET_WIDTH - 0.8;
+        const glassH = CABINET_HEIGHT - 0.6;
+        const glassY = CABINET_FLOOR_Y + glassH / 2 + 0.1;
+        const frontGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
+        frontGlass.position.set(0, glassY, CABINET_DEPTH / 2 - 0.05);
+        machine.add(frontGlass);
+        const backGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
+        backGlass.position.set(0, glassY, -CABINET_DEPTH / 2 + 0.05);
+        backGlass.rotation.y = Math.PI;
+        machine.add(backGlass);
+        const leftGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
+        leftGlass.position.set(-CABINET_WIDTH / 2 + 0.05, glassY, 0);
+        leftGlass.rotation.y = Math.PI / 2;
+        machine.add(leftGlass);
+        const rightGlass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), cabinetGlassMat);
+        rightGlass.position.set(CABINET_WIDTH / 2 - 0.05, glassY, 0);
+        rightGlass.rotation.y = -Math.PI / 2;
+        machine.add(rightGlass);
+
+        const sideRailGeo = new THREE.CylinderGeometry(0.08, 0.08, CABINET_DEPTH - 0.6, 12);
+        sideRailGeo.rotateX(Math.PI / 2);
+        const leftRail = new THREE.Mesh(sideRailGeo, railMat);
+        leftRail.position.set(-CABINET_WIDTH / 2 + 0.1, CABINET_TOP_Y - 0.6, 0);
+        machine.add(leftRail);
+        const rightRail = new THREE.Mesh(sideRailGeo, railMat);
+        rightRail.position.set(CABINET_WIDTH / 2 - 0.1, CABINET_TOP_Y - 0.6, 0);
+        machine.add(rightRail);
+
+        const chuteGroup = new THREE.Group();
+        const chuteWallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const chuteSize = 3.0;
+        const chuteWall = 0.18;
+        const chuteH = 0.6;
+        const cw1 = new THREE.Mesh(new THREE.BoxGeometry(chuteSize, chuteH, chuteWall), chuteWallMat);
+        cw1.position.z = -chuteSize / 2;
+        const cw2 = new THREE.Mesh(new THREE.BoxGeometry(chuteSize, chuteH, chuteWall), chuteWallMat);
+        cw2.position.z = chuteSize / 2;
+        const cw3 = new THREE.Mesh(new THREE.BoxGeometry(chuteWall, chuteH, chuteSize), chuteWallMat);
+        cw3.position.x = chuteSize / 2;
+        const cw4 = new THREE.Mesh(new THREE.BoxGeometry(chuteWall, chuteH, chuteSize), chuteWallMat);
+        cw4.position.x = -chuteSize / 2;
+        chuteGroup.add(cw1, cw2, cw3, cw4);
+        const chuteHole = new THREE.Mesh(new THREE.BoxGeometry(chuteSize - 0.3, 0.08, chuteSize - 0.3), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        chuteHole.position.y = -0.2;
+        chuteGroup.add(chuteHole);
+        chuteGroup.position.set(-2, FLOOR_Y + 0.45, 2);
+        machine.add(chuteGroup);
+
+        const retrievalBox = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 2.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        retrievalBox.position.set(0, CABINET_FLOOR_Y - 1.4, CABINET_DEPTH / 2 + 1.2);
+        machine.add(retrievalBox);
+        const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.4, 0.2), cabinetMetalMat);
+        doorFrame.position.set(0, CABINET_FLOOR_Y - 1.4, CABINET_DEPTH / 2 + 1.7);
+        machine.add(doorFrame);
+        const doorFlap = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.8, 0.15), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 }));
+        doorFlap.position.set(0, CABINET_FLOOR_Y - 1.4, CABINET_DEPTH / 2 + 1.85);
+        doorFlap.rotation.x = -0.2;
+        machine.add(doorFlap);
 
         const gantryMat = new THREE.MeshStandardMaterial({ color: 0x3b3e4a, metalness: 0.5, roughness: 0.4 });
         gantryBridge = new THREE.Group();
@@ -982,62 +1010,6 @@
         carriageBody.position.set(0, 0, 0);
         gantryCarriage.add(carriageBody);
         machine.add(gantryCarriage);
-
-        // Cabinet pillars + glass shell (visual only)
-        const baseTopY = FLOOR_Y - 0.15;
-        const cabinetHeight = Math.max(3.2, ROOF_Y - baseTopY + 0.2);
-        const cabinetMidY = baseTopY + cabinetHeight / 2;
-        const pillarMat = new THREE.MeshStandardMaterial({ color: 0xffcc33, metalness: 0.3, roughness: 0.4 });
-        const pillarGeo = new THREE.BoxGeometry(0.28, cabinetHeight, 0.28);
-        [
-            [-4.35, cabinetMidY, -4.35],
-            [4.35, cabinetMidY, -4.35],
-            [-4.35, cabinetMidY, 4.35],
-            [4.35, cabinetMidY, 4.35]
-        ].forEach((pos) => {
-            const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-            pillar.position.set(pos[0], pos[1], pos[2]);
-            machine.add(pillar);
-        });
-
-        const cabinetGlassMat = new THREE.MeshStandardMaterial({
-            color: 0xd7e7ff,
-            transparent: true,
-            opacity: 0.22,
-            roughness: 0.2,
-            metalness: 0.05,
-            side: THREE.DoubleSide
-        });
-        const glassW = 8.6;
-        const glassH = cabinetHeight;
-        const glassPanel = new THREE.PlaneGeometry(glassW, glassH);
-        const glassSide = new THREE.PlaneGeometry(glassW, glassH);
-        const frontGlass = new THREE.Mesh(glassPanel, cabinetGlassMat);
-        frontGlass.position.set(0, cabinetMidY, 4.5);
-        machine.add(frontGlass);
-        const backGlass = new THREE.Mesh(glassPanel, cabinetGlassMat);
-        backGlass.position.set(0, cabinetMidY, -4.5);
-        backGlass.rotation.y = Math.PI;
-        machine.add(backGlass);
-        const leftGlass = new THREE.Mesh(glassSide, cabinetGlassMat);
-        leftGlass.position.set(-4.5, cabinetMidY, 0);
-        leftGlass.rotation.y = Math.PI / 2;
-        machine.add(leftGlass);
-        const rightGlass = new THREE.Mesh(glassSide, cabinetGlassMat);
-        rightGlass.position.set(4.5, cabinetMidY, 0);
-        rightGlass.rotation.y = -Math.PI / 2;
-        machine.add(rightGlass);
-
-        const marqueeMat = new THREE.MeshStandardMaterial({
-            color: 0xb21c2d,
-            emissive: 0xff7744,
-            emissiveIntensity: 0.8,
-            roughness: 0.4,
-            metalness: 0.2
-        });
-        const marqueeBox = new THREE.Mesh(new THREE.BoxGeometry(8.4, 0.6, 0.6), marqueeMat);
-        marqueeBox.position.set(0, ROOF_Y + 0.5, 4.2);
-        machine.add(marqueeBox);
 
         const WIGGLE_STIFFNESS = 0.015;
         const WIGGLE_DAMPING = 0.98;
@@ -1135,10 +1107,6 @@
         const dropButton = document.getElementById('dropBtn');
         let clawReady = false;
         dropButton.disabled = true;
-        setTimeout(() => {
-            updateCoinHome();
-            resetCoin();
-        }, 0);
 
         const winBanner = document.getElementById('winBanner');
         let winFlash = 0;
@@ -1310,7 +1278,7 @@
         const SLIP_GRIP_PENALTY = 0.15;
         const SLIP_WEIGHT_PENALTY = 0.08;
         const WEIGHT_MAP = { ball: 0.8, prize: 1.2 };
-        const PRIZE_SCALE = 4.25;
+        const PRIZE_SCALE = 2.125;
         let currentSlipRisk = 0;
         // Start open with negative angle
         let targetFingerAngle = -Math.PI / 4;
@@ -1324,58 +1292,6 @@
             mode: 'static',
             position: { left: '50%', top: '50%' },
             color: 'red'
-        });
-
-        // Coin drag/drop
-        const coinDragEl = document.getElementById('coinDrag');
-        const coinSlotUI = document.getElementById('coinSlotUI');
-        let coinHome = null;
-        let draggingCoin = false;
-        let dragOffset = { x: 0, y: 0 };
-
-        function updateCoinHome() {
-            const rect = coinDragEl.getBoundingClientRect();
-            coinHome = { x: rect.left, y: rect.top };
-        }
-
-        function resetCoin() {
-            if (!coinHome) updateCoinHome();
-            coinDragEl.style.position = 'fixed';
-            coinDragEl.style.left = `${coinHome.x}px`;
-            coinDragEl.style.top = `${coinHome.y}px`;
-        }
-
-        function checkCoinDrop(x, y) {
-            const slotRect = coinSlotUI.getBoundingClientRect();
-            const inside = x >= slotRect.left && x <= slotRect.right && y >= slotRect.top && y <= slotRect.bottom;
-            if (inside) {
-                addCoin();
-                coinSlotUI.style.borderColor = 'rgba(255, 255, 255, 0.6)';
-                setTimeout(() => coinSlotUI.style.borderColor = 'rgba(255, 255, 255, 0.25)', 250);
-            }
-            resetCoin();
-        }
-
-        coinDragEl.addEventListener('pointerdown', (e) => {
-            draggingCoin = true;
-            coinDragEl.setPointerCapture(e.pointerId);
-            const rect = coinDragEl.getBoundingClientRect();
-            dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            coinDragEl.style.position = 'fixed';
-            coinDragEl.style.left = `${rect.left}px`;
-            coinDragEl.style.top = `${rect.top}px`;
-        });
-
-        window.addEventListener('pointermove', (e) => {
-            if (!draggingCoin) return;
-            coinDragEl.style.left = `${e.clientX - dragOffset.x}px`;
-            coinDragEl.style.top = `${e.clientY - dragOffset.y}px`;
-        });
-
-        window.addEventListener('pointerup', (e) => {
-            if (!draggingCoin) return;
-            draggingCoin = false;
-            checkCoinDrop(e.clientX, e.clientY);
         });
 
         joystickManager.on('move', (evt, data) => {
@@ -1901,8 +1817,6 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            updateCoinHome();
-            resetCoin();
         }
 
         window.addEventListener('resize', resizeRenderer);
@@ -1952,7 +1866,7 @@
                 lights: { mode: lights.mode },
                 balls: balls.map(b => ({ x: Number(b.position.x.toFixed(2)), y: Number(b.position.y.toFixed(2)), z: Number(b.position.z.toFixed(2)) })),
                 prizes: prizes.filter(p => p.parent).map(p => ({ x: Number(p.position.x.toFixed(2)), y: Number(p.position.y.toFixed(2)), z: Number(p.position.z.toFixed(2)) })),
-                catalogVisible: window.getComputedStyle(catalogEl).display !== 'none',
+                catalogVisible: false,
                 viewport: { w: window.innerWidth, h: window.innerHeight },
                 fullscreen: !!document.fullscreenElement,
                 testMode

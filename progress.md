@@ -51,3 +51,11 @@ Test runs:
 
 TODOs:
 - Run Playwright smoke test and validate joystick/coin drag interactions.
+
+Updates (2026-02-08, later):
+- Simplified UI to only the overhaul joystick and drop button (removed other HUD elements).
+- Swapped cabinet visuals to an overhaul-style shell (pillars, glass, marquee, rails, chute, retrieval box).
+- Reduced prize model scale to roughly half of the previous size.
+
+Test runs:
+- Not run (manual verification recommended for cabinet visuals and UI changes).
