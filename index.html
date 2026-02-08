@@ -18,70 +18,11 @@
         body {
             margin: 0;
             overflow: hidden;
-            background: #111;
-            color: #0ff;
-            font-family: monospace;
-            touch-action: none;
-        }
-
-        #score,
-        #credits,
-        #tickets {
-            position: absolute;
-            top: 10px;
-            background: rgba(0, 0, 0, 0.88);
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 16px;
-            pointer-events: none;
-            z-index: 25;
-        }
-
-        #score {
-            left: 10px;
-        }
-
-        #credits {
-            left: 330px;
-        }
-
-        #tickets {
-            left: 470px;
-        }
-
-        #drop {
-            position: absolute;
-            bottom: 30px;
-            left: calc(50% + 100px);
-            /* To the right of the centered joystick */
-            right: auto;
-            width: 100px;
-            height: 100px;
-
-            border-radius: 50%;
-            background: #28a745;
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-            border: 4px solid #1e7e34;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            cursor: pointer;
-            z-index: 20;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: #050505;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
             user-select: none;
-        }
-
-        #drop[disabled] {
-            opacity: 0.5;
-            cursor: not-allowed;
-            filter: grayscale(0.3);
-        }
-
-        #drop:active {
-            background: #1e7e34;
-            transform: scale(0.95);
+            touch-action: none;
         }
 
         button {
@@ -91,14 +32,7 @@
         }
 
         #insertCoin {
-            position: absolute;
-            top: 10px;
-            right: 220px;
-            background: #00aa00;
-            padding: 8px 12px;
-            font-size: 14px;
-            border-radius: 4px;
-            color: white;
+            display: none;
         }
 
         #toggleCatalog {
@@ -112,16 +46,6 @@
             color: white;
         }
 
-        #zone_joystick {
-            position: absolute;
-            bottom: 10%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 150px;
-            height: 150px;
-            z-index: 10;
-        }
-
         #catalog {
             position: absolute;
             top: 50px;
@@ -132,28 +56,6 @@
             border-radius: 6px;
             display: none;
             z-index: 20;
-        }
-
-        #marquee {
-            position: absolute;
-            top: 56px;
-            left: 0;
-            right: 0;
-            overflow: hidden;
-            height: 28px;
-            z-index: 24;
-            pointer-events: none;
-        }
-
-        .marquee-track {
-            display: inline-block;
-            padding-left: 100%;
-            white-space: nowrap;
-            color: #ffeaa7;
-            font-size: 14px;
-            letter-spacing: 2px;
-            text-shadow: 0 0 8px rgba(255, 234, 167, 0.6);
-            animation: marquee 18s linear infinite;
         }
 
         #winBanner {
@@ -185,25 +87,22 @@
             100% { opacity: 0; transform: translateX(-50%) scale(0.9); }
         }
 
-        @keyframes marquee {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-100%); }
-        }
-
         #coinTray {
-            position: absolute;
-            bottom: 22px;
-            left: 16px;
-            width: 90px;
-            height: 90px;
-            background: rgba(0, 0, 0, 0.4);
+            width: 86px;
+            height: 86px;
+            background: rgba(0, 0, 0, 0.35);
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.15);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 30;
-            pointer-events: none;
+            pointer-events: auto;
+        }
+
+        .panel-coin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .coin {
@@ -228,17 +127,150 @@
         }
 
         #coinSlotUI {
-            position: absolute;
+            position: relative;
             width: 72px;
-            height: 18px;
+            height: 16px;
             background: rgba(0, 0, 0, 0.6);
             border: 2px solid rgba(255, 255, 255, 0.25);
             border-radius: 10px;
-            transform: translate(-50%, -50%) rotate(-12deg);
+            transform: rotate(-12deg);
             z-index: 28;
             pointer-events: none;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
+            margin-left: -8px;
         }
 
+        #fade-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            z-index: 9999;
+            pointer-events: none;
+            transition: opacity 3s ease-in-out;
+            opacity: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 240px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 30px;
+            pointer-events: none;
+            transition: opacity 0.5s;
+            z-index: 30;
+        }
+
+        .control-panel {
+            background: #2c3e50;
+            padding: 20px 40px;
+            border-radius: 20px;
+            border: 4px solid #c0392b;
+            display: flex;
+            gap: 26px;
+            pointer-events: auto;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            align-items: center;
+            position: relative;
+        }
+
+        #joystick-zone {
+            width: 120px;
+            height: 120px;
+            position: relative;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            border: 4px solid #7f8c8d;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        #joystick-stick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            height: 12px;
+            background: linear-gradient(to bottom, #95a5a6, #7f8c8d);
+            transform-origin: 0 50%;
+            pointer-events: none;
+            z-index: 5;
+            border-radius: 6px;
+            width: 0px;
+            transform: translate(0, -50%) rotate(0deg);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        #joystick-knob {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 30% 30%, #e74c3c, #c0392b);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .btn-action {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: #e74c3c;
+            color: white;
+            font-size: 1.4rem;
+            font-weight: 900;
+            border: none;
+            box-shadow: 0 8px 0 #962c22, 0 0 20px rgba(231, 76, 60, 0.4);
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .btn-action:active { transform: translateY(8px); box-shadow: 0 0 0 #962c22; }
+        .btn-action[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(0.3);
+            box-shadow: none;
+        }
+
+        .display-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .display-group.compact .lcd-val {
+            font-size: 22px;
+        }
+
+        .display {
+            background: #000;
+            color: #e74c3c;
+            font-family: 'Courier New', monospace;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 2px solid #555;
+            text-align: right;
+            min-width: 80px;
+        }
+        .lcd-label { font-size: 11px; color: #95a5a6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;}
+        .lcd-val { font-size: 28px; line-height: 1; text-shadow: 0 0 5px #e74c3c; }
+
+        #toggleCatalog {
+            top: 10px;
+            right: 10px;
+            z-index: 40;
+        }
 
         #catalog h3 {
             margin: 0 0 8px 0;
@@ -265,77 +297,101 @@
         }
 
         @media (max-width: 700px) {
-            #score,
-            #credits,
-            #tickets {
-                left: 10px;
-                top: 8px;
-                font-size: 14px;
-                padding: 6px 8px;
+            #ui-layer {
+                height: 200px;
+                padding-bottom: 18px;
             }
 
-            #credits {
-                top: 36px;
+            .control-panel {
+                padding: 14px 18px;
+                gap: 16px;
+                flex-wrap: wrap;
+                justify-content: center;
             }
 
-            #tickets {
-                top: 64px;
+            #joystick-zone {
+                width: 90px;
+                height: 90px;
             }
 
-            #insertCoin {
-                top: 8px;
-                right: 10px;
-                padding: 10px 12px;
-                font-size: 13px;
+            #joystick-knob {
+                width: 46px;
+                height: 46px;
+            }
+
+            .btn-action {
+                width: 90px;
+                height: 90px;
+                font-size: 1.1rem;
+            }
+
+            #coinTray {
+                width: 64px;
+                height: 64px;
+            }
+
+            .coin {
+                width: 48px;
+                height: 48px;
+                font-size: 10px;
+            }
+
+            .display-group.compact .lcd-val {
+                font-size: 18px;
             }
 
             #toggleCatalog {
-                top: 46px;
-                right: 10px;
-                padding: 10px 12px;
-                font-size: 13px;
-            }
-
-            #zone_joystick {
-                width: 120px;
-                height: 120px;
-                bottom: 12%;
-            }
-
-            #drop {
-                width: 90px;
-                height: 90px;
-                left: calc(50% + 85px);
-                bottom: 12%;
-                font-size: 18px;
+                top: 8px;
+                right: 8px;
+                padding: 8px 10px;
+                font-size: 12px;
             }
         }
     </style>
 </head>
 
 <body>
-    <div id="score">Prizes: 0 Free: 0 Turns: 5</div>
-    <div id="credits">Credits: 0</div>
-    <div id="tickets">Tickets: 0</div>
+    <div id="fade-overlay"></div>
+    <div id="winBanner">JACKPOT!</div>
 
     <button id="insertCoin">💰 Insert Coin</button>
     <button id="toggleCatalog">🎁 Catalog</button>
 
-    <div id="marquee">
-        <div class="marquee-track">WELCOME TO PICK ME UP LOVE • DRAG THE COIN TO THE SLOT • GOOD LUCK • WIN BIG •</div>
+    <div id="ui-layer">
+        <div class="control-panel">
+            <div class="display-group">
+                <div class="lcd-label">Credits</div>
+                <div class="display"><div class="lcd-val" id="creditDisplay">0</div></div>
+            </div>
+
+            <div id="coinTray" class="panel-coin">
+                <div id="coinDrag" class="coin">COIN</div>
+            </div>
+            <div id="coinSlotUI"></div>
+
+            <div id="joystick-zone">
+                <div id="joystick-stick"></div>
+                <div id="joystick-knob"></div>
+            </div>
+
+            <button class="btn-action" id="dropBtn">DROP</button>
+
+            <div class="display-group compact">
+                <div class="lcd-label">Prizes</div>
+                <div class="display"><div class="lcd-val" id="prizeDisplay">0</div></div>
+            </div>
+
+            <div class="display-group compact">
+                <div class="lcd-label">Tickets</div>
+                <div class="display"><div class="lcd-val" id="ticketDisplay">0</div></div>
+            </div>
+
+            <div class="display-group compact">
+                <div class="lcd-label">Turns</div>
+                <div class="display"><div class="lcd-val" id="turnDisplay">0</div></div>
+            </div>
+        </div>
     </div>
-
-    <div id="winBanner">JACKPOT!</div>
-
-    <div id="coinTray">
-        <div id="coinDrag" class="coin">COIN</div>
-    </div>
-    <div id="coinSlotUI"></div>
-
-    <div id="zone_joystick"></div>
-
-    <button id="drop">DROP</button>
-
 
     <div id="catalog">
         <h3>Prize Catalog</h3>
@@ -422,11 +478,13 @@
 
 
         // UI Elements
-        const scoreEl = document.getElementById('score');
-        const creditsEl = document.getElementById('credits');
-        const ticketsEl = document.getElementById('tickets');
+        const creditDisplay = document.getElementById('creditDisplay');
+        const prizeDisplay = document.getElementById('prizeDisplay');
+        const ticketDisplay = document.getElementById('ticketDisplay');
+        const turnDisplay = document.getElementById('turnDisplay');
         const catalogEl = document.getElementById('catalog');
         const catalogBtn = document.getElementById('toggleCatalog');
+        const fadeOverlay = document.getElementById('fade-overlay');
 
         // Game State
         const testMode = new URLSearchParams(window.location.search).get('test') === '1';
@@ -438,9 +496,17 @@
         ];
 
         function updateUI() {
-            scoreEl.innerText = `Prizes: ${prizeCount}  Free: ${freeTurns}  Turns: ${turns}`;
-            creditsEl.innerText = `Credits: ${credits}`;
-            ticketsEl.innerText = `Tickets: ${tickets}`;
+            if (creditDisplay) creditDisplay.textContent = credits;
+            if (prizeDisplay) prizeDisplay.textContent = prizeCount;
+            if (ticketDisplay) ticketDisplay.textContent = tickets;
+            if (turnDisplay) turnDisplay.textContent = turns;
+        }
+
+        if (fadeOverlay) {
+            requestAnimationFrame(() => {
+                fadeOverlay.style.opacity = '0';
+                setTimeout(() => { fadeOverlay.style.display = 'none'; }, 3200);
+            });
         }
 
         // Populate catalog
@@ -508,70 +574,50 @@
         dirLight.castShadow = false;
         scene.add(dirLight);
 
-        const floorCanvas = document.createElement('canvas');
-        floorCanvas.width = 256;
-        floorCanvas.height = 256;
-        const floorCtx = floorCanvas.getContext('2d');
-        if (floorCtx) {
-            const grad = floorCtx.createLinearGradient(0, 0, 0, 256);
-            grad.addColorStop(0, '#0f0f24');
-            grad.addColorStop(1, '#05050d');
-            floorCtx.fillStyle = grad;
-            floorCtx.fillRect(0, 0, 256, 256);
-            floorCtx.strokeStyle = 'rgba(0, 255, 255, 0.14)';
-            floorCtx.lineWidth = 1;
-            for (let i = 0; i <= 256; i += 32) {
-                floorCtx.beginPath();
-                floorCtx.moveTo(i, 0);
-                floorCtx.lineTo(i, 256);
-                floorCtx.stroke();
-                floorCtx.beginPath();
-                floorCtx.moveTo(0, i);
-                floorCtx.lineTo(256, i);
-                floorCtx.stroke();
-            }
-        }
-        const floorTex = new THREE.CanvasTexture(floorCanvas);
-        floorTex.wrapS = THREE.RepeatWrapping;
-        floorTex.wrapT = THREE.RepeatWrapping;
-        floorTex.repeat.set(6, 6);
+        const textureLoader = new THREE.TextureLoader();
+        const floorTexture = textureLoader.load('./textures/floor.png');
+        floorTexture.wrapS = THREE.RepeatWrapping;
+        floorTexture.wrapT = THREE.RepeatWrapping;
+        floorTexture.repeat.set(10, 10);
         if (renderer.capabilities.getMaxAnisotropy) {
-            floorTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            floorTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
         }
+
+        const ceilingTexture = textureLoader.load('./textures/ceiling.png');
+        ceilingTexture.wrapS = THREE.RepeatWrapping;
+        ceilingTexture.wrapT = THREE.RepeatWrapping;
+        ceilingTexture.repeat.set(6, 6);
+        if (renderer.capabilities.getMaxAnisotropy) {
+            ceilingTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        }
+
+        const roomFloorMat = new THREE.MeshStandardMaterial({ map: floorTexture, metalness: 0.1, roughness: 0.85 });
         const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(MACHINE_SCALE * 16, MACHINE_SCALE * 16),
-            new THREE.MeshStandardMaterial({ map: floorTex, metalness: 0.1, roughness: 0.9 })
+            roomFloorMat
         );
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = -1.2;
         scene.add(floor);
 
         // Skybox
-        const skyCanvas = document.createElement('canvas');
-        skyCanvas.width = 16;
-        skyCanvas.height = 256;
-        const skyCtx = skyCanvas.getContext('2d');
-        if (skyCtx) {
-            const skyGrad = skyCtx.createLinearGradient(0, 0, 0, 256);
-            skyGrad.addColorStop(0, '#4a4a7a');
-            skyGrad.addColorStop(0.5, '#2f2f55');
-            skyGrad.addColorStop(1, '#1a1a30');
-            skyCtx.fillStyle = skyGrad;
-            skyCtx.fillRect(0, 0, 16, 256);
-        }
-        const skyTex = new THREE.CanvasTexture(skyCanvas);
-        const skyMat = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide });
+        const skyTex = ceilingTexture.clone();
+        skyTex.wrapS = THREE.RepeatWrapping;
+        skyTex.wrapT = THREE.RepeatWrapping;
+        skyTex.repeat.set(4, 2);
+        skyTex.needsUpdate = true;
+        const skyMat = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, color: 0x222244 });
         const skySize = MACHINE_SCALE * 24;
         const skybox = new THREE.Mesh(new THREE.BoxGeometry(skySize, skySize, skySize), skyMat);
         skybox.position.set(0, skySize * 0.35, 0);
         scene.add(skybox);
 
         const roomMat = new THREE.MeshStandardMaterial({
-            color: 0x2a2a3a,
-            emissive: 0x111126,
-            emissiveIntensity: 0.35,
+            color: 0x303040,
+            emissive: 0x151525,
+            emissiveIntensity: 0.25,
             transparent: true,
-            opacity: 0.36,
+            opacity: 0.35,
             roughness: 0.85,
             metalness: 0.05,
             side: THREE.DoubleSide
@@ -596,7 +642,15 @@
         roomRight.position.set(roomHalf, roomWallY, 0);
         roomRight.rotation.y = -Math.PI / 2;
         scene.add(roomRight);
-        const roomCeil = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), roomMat);
+        const roomCeilMat = new THREE.MeshStandardMaterial({
+            map: ceilingTexture,
+            roughness: 0.85,
+            metalness: 0.05,
+            emissive: 0x202038,
+            emissiveIntensity: 0.2,
+            side: THREE.DoubleSide
+        });
+        const roomCeil = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), roomCeilMat);
         roomCeil.position.set(0, roomHeight, 0);
         roomCeil.rotation.x = Math.PI / 2;
         scene.add(roomCeil);
@@ -723,6 +777,11 @@
         const machine = new THREE.Group();
         scene.add(machine);
         machine.scale.set(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
+        let gantryBridge;
+        let gantryCarriage;
+        let ropeMesh;
+        let coilMesh;
+        let dragChainMesh;
         const ROOF_Y = 6;
         const CLAW_TOP_Y = 5.5;
         const FLOOR_Y = 2.4;
@@ -736,17 +795,39 @@
         const interiorLight = new THREE.PointLight(0xffffff, 4.2, 260);
         interiorLight.position.set(0, FLOOR_TOP_Y + 1.6, 0);
         machine.add(interiorLight);
+        const interiorTopLight = new THREE.PointLight(0xffffff, 5.6, 320);
+        interiorTopLight.position.set(0, ROOF_Y - 0.2, 0);
+        machine.add(interiorTopLight);
+        const interiorFrontLight = new THREE.PointLight(0xfff2dd, 3.6, 220);
+        interiorFrontLight.position.set(0, FLOOR_TOP_Y + 1.2, 3.1);
+        machine.add(interiorFrontLight);
 
         const baseMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.3, roughness: 0.7 });
+        const interiorFloorTex = floorTexture.clone();
+        interiorFloorTex.repeat.set(2.2, 2.2);
+        interiorFloorTex.anisotropy = floorTexture.anisotropy || 1;
+        interiorFloorTex.needsUpdate = true;
+        const interiorFloorMat = new THREE.MeshStandardMaterial({ map: interiorFloorTex, metalness: 0.05, roughness: 0.85 });
+        const interiorCeilTex = ceilingTexture.clone();
+        interiorCeilTex.repeat.set(1.8, 1.8);
+        interiorCeilTex.anisotropy = ceilingTexture.anisotropy || 1;
+        interiorCeilTex.needsUpdate = true;
+        const interiorCeilMat = new THREE.MeshStandardMaterial({
+            map: interiorCeilTex,
+            metalness: 0.05,
+            roughness: 0.9,
+            emissive: 0x242424,
+            emissiveIntensity: 0.25
+        });
 
         // Floor Parts (Hole at corner approx -2 to -4 X, 2 to 4 Z)
         // Main floor right
-        const f1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 8), baseMat);
+        const f1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 8), interiorFloorMat);
         f1.position.set(2, FLOOR_Y, 0);
         machine.add(f1);
 
         // Floor part top-left
-        const f2 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 4), baseMat);
+        const f2 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 4), interiorFloorMat);
         f2.position.set(-2, FLOOR_Y, -2);
         machine.add(f2);
 
@@ -819,7 +900,7 @@
         machine.add(rightWall);
 
         // Machine glass walls removed; room walls now define the environment.
-        const top = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 8), baseMat);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 8), interiorCeilMat);
         top.position.y = ROOF_Y;
         machine.add(top);
 
@@ -887,6 +968,83 @@
         slot.position.set(0, FLOOR_Y - 0.9, 4.3);
         machine.add(slot);
 
+        const gantryMat = new THREE.MeshStandardMaterial({ color: 0x3b3e4a, metalness: 0.5, roughness: 0.4 });
+        gantryBridge = new THREE.Group();
+        const bridgeX = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.18, 0.6), gantryMat);
+        bridgeX.position.set(0, ROOF_Y + 0.25, 0);
+        const bridgeZ = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.18, 8.8), gantryMat);
+        bridgeZ.position.set(0, ROOF_Y + 0.25, 0);
+        gantryBridge.add(bridgeX, bridgeZ);
+        machine.add(gantryBridge);
+
+        gantryCarriage = new THREE.Group();
+        const carriageBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 1.4), gantryMat);
+        carriageBody.position.set(0, 0, 0);
+        gantryCarriage.add(carriageBody);
+        machine.add(gantryCarriage);
+
+        // Cabinet pillars + glass shell (visual only)
+        const baseTopY = FLOOR_Y - 0.15;
+        const cabinetHeight = Math.max(3.2, ROOF_Y - baseTopY + 0.2);
+        const cabinetMidY = baseTopY + cabinetHeight / 2;
+        const pillarMat = new THREE.MeshStandardMaterial({ color: 0xffcc33, metalness: 0.3, roughness: 0.4 });
+        const pillarGeo = new THREE.BoxGeometry(0.28, cabinetHeight, 0.28);
+        [
+            [-4.35, cabinetMidY, -4.35],
+            [4.35, cabinetMidY, -4.35],
+            [-4.35, cabinetMidY, 4.35],
+            [4.35, cabinetMidY, 4.35]
+        ].forEach((pos) => {
+            const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+            pillar.position.set(pos[0], pos[1], pos[2]);
+            machine.add(pillar);
+        });
+
+        const cabinetGlassMat = new THREE.MeshStandardMaterial({
+            color: 0xd7e7ff,
+            transparent: true,
+            opacity: 0.22,
+            roughness: 0.2,
+            metalness: 0.05,
+            side: THREE.DoubleSide
+        });
+        const glassW = 8.6;
+        const glassH = cabinetHeight;
+        const glassPanel = new THREE.PlaneGeometry(glassW, glassH);
+        const glassSide = new THREE.PlaneGeometry(glassW, glassH);
+        const frontGlass = new THREE.Mesh(glassPanel, cabinetGlassMat);
+        frontGlass.position.set(0, cabinetMidY, 4.5);
+        machine.add(frontGlass);
+        const backGlass = new THREE.Mesh(glassPanel, cabinetGlassMat);
+        backGlass.position.set(0, cabinetMidY, -4.5);
+        backGlass.rotation.y = Math.PI;
+        machine.add(backGlass);
+        const leftGlass = new THREE.Mesh(glassSide, cabinetGlassMat);
+        leftGlass.position.set(-4.5, cabinetMidY, 0);
+        leftGlass.rotation.y = Math.PI / 2;
+        machine.add(leftGlass);
+        const rightGlass = new THREE.Mesh(glassSide, cabinetGlassMat);
+        rightGlass.position.set(4.5, cabinetMidY, 0);
+        rightGlass.rotation.y = -Math.PI / 2;
+        machine.add(rightGlass);
+
+        const marqueeMat = new THREE.MeshStandardMaterial({
+            color: 0xb21c2d,
+            emissive: 0xff7744,
+            emissiveIntensity: 0.8,
+            roughness: 0.4,
+            metalness: 0.2
+        });
+        const marqueeBox = new THREE.Mesh(new THREE.BoxGeometry(8.4, 0.6, 0.6), marqueeMat);
+        marqueeBox.position.set(0, ROOF_Y + 0.5, 4.2);
+        machine.add(marqueeBox);
+
+        const WIGGLE_STIFFNESS = 0.015;
+        const WIGGLE_DAMPING = 0.98;
+        const clawTarget = new THREE.Vector3(0, 0, 0);
+        const clawPos = new THREE.Vector3(0, 0, 0);
+        const clawWiggleVel = new THREE.Vector3(0, 0, 0);
+
         // Claw
         const clawGroup = new THREE.Group();
         // Pivot group for physics wiggle
@@ -894,10 +1052,51 @@
         clawGroup.add(clawPivot);
         clawGroup.position.set(0, CLAW_TOP_Y, 0); // Lower start pos
         machine.add(clawGroup);
+        clawTarget.set(clawGroup.position.x, 0, clawGroup.position.z);
+        clawPos.set(clawGroup.position.x, 0, clawGroup.position.z);
 
         const clawLight = new THREE.PointLight(0xffffff, 3.4, 240);
         clawLight.position.set(0, -0.6, 0);
         clawGroup.add(clawLight);
+
+        const ropeContainer = new THREE.Group();
+        const ropeGeo = new THREE.CylinderGeometry(0.04, 0.04, 1);
+        ropeGeo.rotateX(-Math.PI / 2);
+        ropeGeo.translate(0, 0, 0.5);
+        const ropeBody = new THREE.Mesh(ropeGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
+        ropeContainer.add(ropeBody);
+        ropeMesh = ropeContainer;
+        machine.add(ropeMesh);
+
+        class HelixCurve extends THREE.Curve {
+            getPoint(t) {
+                const loops = 10;
+                const angle = t * Math.PI * 2 * loops;
+                const radius = 0.25;
+                const x = radius * Math.cos(angle);
+                const z = radius * Math.sin(angle);
+                const y = -t * 3.2;
+                return new THREE.Vector3(x, y, z);
+            }
+        }
+        const coilPath = new HelixCurve();
+        const coilGeo = new THREE.TubeGeometry(coilPath, 96, 0.06, 6, false);
+        coilGeo.rotateX(-Math.PI / 2);
+        coilGeo.translate(0, 0, 1.6);
+        const coilBody = new THREE.Mesh(coilGeo, new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.9 }));
+        const coilContainer = new THREE.Group();
+        coilContainer.add(coilBody);
+        coilMesh = coilContainer;
+        machine.add(coilMesh);
+
+        const chainPath = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, 0)
+        ]);
+        const chainGeo = new THREE.TubeGeometry(chainPath, 12, 0.08, 4, false);
+        dragChainMesh = new THREE.Mesh(chainGeo, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 }));
+        machine.add(dragChainMesh);
 
         // Confetti for win feedback
         const confettiCount = 220;
@@ -933,7 +1132,7 @@
             confettiLife = 2.4;
         }
 
-        const dropButton = document.getElementById('drop');
+        const dropButton = document.getElementById('dropBtn');
         let clawReady = false;
         dropButton.disabled = true;
         setTimeout(() => {
@@ -943,13 +1142,6 @@
 
         const winBanner = document.getElementById('winBanner');
         let winFlash = 0;
-
-        // Claw Cord (visual only)
-        const cordGeo = new THREE.CylinderGeometry(0.05, 0.05, 1);
-        const cordMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-        const cord = new THREE.Mesh(cordGeo, cordMat);
-        cord.position.y = 1.2;
-        clawGroup.add(cord);
 
         // Custom Claw Model
         const fingers = [];
@@ -1056,7 +1248,7 @@
         const loader = new GLTFLoader();
         const prizes = [];
         // Updated model list based on directory contents
-        const modelNames = ['donald', 'eric', 'kristen', 'kyle', 'rochelle', 'vickie'];
+        const modelNames = ['bethany', 'caleb', 'connie', 'maia', 'donald', 'eric', 'kristen', 'kyle', 'rochelle', 'vickie'];
 
         modelNames.forEach(name => {
             // Using relative path assuming index.html is in root and models in models/
@@ -1123,12 +1315,12 @@
         // Start open with negative angle
         let targetFingerAngle = -Math.PI / 4;
 
-        let wiggleTime = 0;
-        let wiggleAmp = 0;
-
         // Joystick
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickKnob = document.getElementById('joystick-knob');
+        const joystickStick = document.getElementById('joystick-stick');
         const joystickManager = nipplejs.create({
-            zone: document.getElementById('zone_joystick'),
+            zone: joystickZone,
             mode: 'static',
             position: { left: '50%', top: '50%' },
             color: 'red'
@@ -1148,7 +1340,7 @@
 
         function resetCoin() {
             if (!coinHome) updateCoinHome();
-            coinDragEl.style.position = 'absolute';
+            coinDragEl.style.position = 'fixed';
             coinDragEl.style.left = `${coinHome.x}px`;
             coinDragEl.style.top = `${coinHome.y}px`;
         }
@@ -1169,7 +1361,7 @@
             coinDragEl.setPointerCapture(e.pointerId);
             const rect = coinDragEl.getBoundingClientRect();
             dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            coinDragEl.style.position = 'absolute';
+            coinDragEl.style.position = 'fixed';
             coinDragEl.style.left = `${rect.left}px`;
             coinDragEl.style.top = `${rect.top}px`;
         });
@@ -1187,12 +1379,23 @@
         });
 
         joystickManager.on('move', (evt, data) => {
-            if (data.vector && clawState === CLAW_STATES.IDLE) {
+            if (!data.vector) return;
+            if (clawState === CLAW_STATES.IDLE) {
                 audio.ctx.resume(); // Ensure context is running
                 clawVelocity.x = data.vector.x * CLAW_SPEED;
                 clawVelocity.z = -data.vector.y * CLAW_SPEED;
                 const speed = Math.hypot(clawVelocity.x, clawVelocity.z);
                 audio.startMotor(200 + speed * 1000);
+            }
+            if (joystickKnob && joystickStick) {
+                const maxDist = 36;
+                const x = data.vector.x * maxDist;
+                const y = data.vector.y * maxDist;
+                joystickKnob.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+                const length = Math.min(maxDist, Math.hypot(x, y));
+                const angle = Math.atan2(y, x);
+                joystickStick.style.width = `${length}px`;
+                joystickStick.style.transform = `translate(0, -50%) rotate(${angle}rad)`;
             }
         });
 
@@ -1200,6 +1403,11 @@
             clawVelocity.x = 0;
             clawVelocity.z = 0;
             audio.stopMotor();
+            if (joystickKnob && joystickStick) {
+                joystickKnob.style.transform = 'translate(-50%, -50%)';
+                joystickStick.style.width = '0px';
+                joystickStick.style.transform = 'translate(0, -50%) rotate(0deg)';
+            }
         });
 
         function applyKeyboardMovement() {
@@ -1279,6 +1487,8 @@
                 }
 
                 clawState = CLAW_STATES.DROPPING;
+                clawVelocity.x = 0;
+                clawVelocity.z = 0;
                 lights.setMode('PLAY');
                 setFingers(true);
                 updateUI();
@@ -1412,16 +1622,6 @@
             dust.rotation.y += dt * 0.02;
             if (!grabbed) currentSlipRisk = 0;
 
-            // Position coin slot UI over 3D slot
-            if (coinSlotUI) {
-                const joystick = document.getElementById('zone_joystick');
-                const joyRect = joystick.getBoundingClientRect();
-                const x = joyRect.left - 50;
-                const y = joyRect.top + joyRect.height / 2;
-                coinSlotUI.style.left = `${x}px`;
-                coinSlotUI.style.top = `${y}px`;
-            }
-
             // Aim spotlight at the claw hang point
             if (spotLight && clawGroup) {
                 const clawWorld = new THREE.Vector3();
@@ -1469,30 +1669,16 @@
                 }
             });
 
-            // Wiggle Animation
-            if (wiggleAmp > 0.01) {
-                wiggleTime += dt * 10;
-                wiggleAmp *= 0.95; // Damping
-                clawPivot.rotation.z = Math.sin(wiggleTime) * wiggleAmp;
-            } else {
-                clawPivot.rotation.z = 0;
-            }
-
-            // Update Cord (Stretch to roof at ROOF_Y)
-            const distToRoof = Math.max(0.2, ROOF_Y - clawGroup.position.y);
-            cord.scale.y = distToRoof;
-            cord.position.y = distToRoof / 2 + 0.2;
-
             // State Machine
             switch (clawState) {
                 case CLAW_STATES.IDLE:
                     // Joystick Movement
-                    clawGroup.position.x += clawVelocity.x;
-                    clawGroup.position.z += clawVelocity.z;
+                    clawTarget.x += clawVelocity.x;
+                    clawTarget.z += clawVelocity.z;
 
                     // Constraints
-                    clawGroup.position.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawGroup.position.x));
-                    clawGroup.position.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawGroup.position.z));
+                    clawTarget.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawTarget.x));
+                    clawTarget.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawTarget.z));
                     break;
 
                 case CLAW_STATES.DROPPING:
@@ -1548,22 +1734,24 @@
                     const targetX = -2;
                     const targetZ = 2; // Front left is +Z in this camera setup (camera at +Z positive)
 
-                    const dx = targetX - clawGroup.position.x;
-                    const dz = targetZ - clawGroup.position.z;
+                    const dx = targetX - clawTarget.x;
+                    const dz = targetZ - clawTarget.z;
                     const dist = Math.sqrt(dx * dx + dz * dz);
 
-                    if (dist < 0.1) {
-                        clawGroup.position.x = targetX;
-                        clawGroup.position.z = targetZ;
+                    if (dist > 0.001) {
+                        const move = Math.min(dist, 4 * dt);
+                        clawTarget.x += (dx / dist) * move;
+                        clawTarget.z += (dz / dist) * move;
+                        maybeSlip(dt);
+                    }
+
+                    const actualDist = Math.hypot(clawPos.x - targetX, clawPos.z - targetZ);
+                    if (actualDist < 0.12) {
+                        clawTarget.x = targetX;
+                        clawTarget.z = targetZ;
                         audio.stopMotor(); // SCRATCH STOP
                         clawState = CLAW_STATES.WIGGLE_STOP;
-                        wiggleAmp = 0.2; // Trigger wiggle
                         stateTimer = 0;
-                    } else {
-                        const move = Math.min(dist, 4 * dt);
-                        clawGroup.position.x += (dx / dist) * move;
-                        clawGroup.position.z += (dz / dist) * move;
-                        maybeSlip(dt);
                     }
                     break;
 
@@ -1600,27 +1788,73 @@
 
                 case CLAW_STATES.RETURNING:
                     // Return to 0,0
-                    const rdx = 0 - clawGroup.position.x;
-                    const rdz = 0 - clawGroup.position.z;
+                    const rdx = 0 - clawTarget.x;
+                    const rdz = 0 - clawTarget.z;
                     const rdist = Math.sqrt(rdx * rdx + rdz * rdz);
 
-                    if (rdist < 0.1) {
-                        clawGroup.position.x = 0;
-                        clawGroup.position.z = 0;
+                    if (rdist > 0.001) {
+                        const move = Math.min(rdist, 4 * dt);
+                        clawTarget.x += (rdx / rdist) * move;
+                        clawTarget.z += (rdz / rdist) * move;
+                    }
+
+                    const actualReturnDist = Math.hypot(clawPos.x, clawPos.z);
+                    if (actualReturnDist < 0.12) {
+                        clawTarget.x = 0;
+                        clawTarget.z = 0;
                         audio.stopMotor();
                         clawState = CLAW_STATES.IDLE;
                         lights.setMode('IDLE');
-                    } else {
-                        const move = Math.min(rdist, 4 * dt);
-                        clawGroup.position.x += (rdx / rdist) * move;
-                        clawGroup.position.z += (rdz / rdist) * move;
                     }
                     break;
             }
 
             // Safety clamp to avoid overshoot in non-IDLE states
-            clawGroup.position.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawGroup.position.x));
-            clawGroup.position.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawGroup.position.z));
+            clawTarget.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawTarget.x));
+            clawTarget.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawTarget.z));
+
+            const forceX = (clawTarget.x - clawPos.x) * WIGGLE_STIFFNESS;
+            const forceZ = (clawTarget.z - clawPos.z) * WIGGLE_STIFFNESS;
+            clawWiggleVel.x = (clawWiggleVel.x + forceX) * WIGGLE_DAMPING;
+            clawWiggleVel.z = (clawWiggleVel.z + forceZ) * WIGGLE_DAMPING;
+            clawPos.x += clawWiggleVel.x;
+            clawPos.z += clawWiggleVel.z;
+            clawPos.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawPos.x));
+            clawPos.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawPos.z));
+
+            clawGroup.position.x = clawPos.x;
+            clawGroup.position.z = clawPos.z;
+            clawGroup.rotation.z = -(clawTarget.x - clawPos.x) * 0.12;
+            clawGroup.rotation.x = (clawTarget.z - clawPos.z) * 0.12;
+
+            if (gantryCarriage) {
+                gantryCarriage.position.set(clawTarget.x, ROOF_Y + 0.2, clawTarget.z);
+            }
+
+            if (ropeMesh && coilMesh) {
+                const hookOffset = 0.7;
+                const anchorVec = new THREE.Vector3(clawTarget.x, ROOF_Y + 0.2, clawTarget.z);
+                const clawVec = new THREE.Vector3(clawGroup.position.x, clawGroup.position.y + hookOffset, clawGroup.position.z);
+                ropeMesh.position.copy(anchorVec);
+                ropeMesh.lookAt(clawVec);
+                ropeMesh.scale.z = anchorVec.distanceTo(clawVec);
+
+                const coilAnchor = anchorVec.clone().add(new THREE.Vector3(0.3, 0, 0.3));
+                const coilClaw = clawVec.clone().add(new THREE.Vector3(0.3, 0, 0.3));
+                coilMesh.position.copy(coilAnchor);
+                coilMesh.lookAt(coilClaw);
+                coilMesh.scale.set(1, 1, Math.max(0.2, coilAnchor.distanceTo(coilClaw) / 2.2));
+            }
+
+            if (dragChainMesh) {
+                const start = new THREE.Vector3(-4.6, ROOF_Y + 0.3, clawTarget.z);
+                const end = new THREE.Vector3(clawTarget.x, ROOF_Y + 0.3, clawTarget.z);
+                const mid = start.clone().lerp(end, 0.5);
+                mid.y += 1.2;
+                dragChainMesh.geometry.dispose();
+                const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+                dragChainMesh.geometry = new THREE.TubeGeometry(curve, 10, 0.08, 4, false);
+            }
 
             // Grabbed Object Sync
             if (grabbed) {
@@ -1667,6 +1901,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            updateCoinHome();
             resetCoin();
         }
 

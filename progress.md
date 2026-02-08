@@ -38,3 +38,16 @@ Test runs:
 
 TODOs:
 - Optionally add a short on-screen controls hint for first-time players.
+
+Updates (2026-02-08):
+- Replaced HUD with overhaul control panel UI, joystick visuals, and compact prize/ticket/turn displays; integrated coin tray + drag-to-slot in panel.
+- Added spring-lag wiggle motion and rope/coil/drag-chain visuals; kept custom claw model and existing grab logic.
+- Added new prize models (bethany, caleb, connie, maia) alongside existing prizes.
+- Applied new floor/ceiling textures to the room and cabinet interior; updated skybox to match textures.
+- Added cabinet shell visuals (pillars, glass panels, marquee box) and brightened interior lighting.
+
+Test runs:
+- Not run (manual verification recommended for UI + wiggle + rope visuals).
+
+TODOs:
+- Run Playwright smoke test and validate joystick/coin drag interactions.
