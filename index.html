@@ -3,143 +3,21 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Claw Crane Game - Coin & Ticket System</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Claw Machine Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background: #050505;
-            color: #e0e0e0;
+            background-color: #050505;
             font-family: 'Segoe UI', sans-serif;
             user-select: none;
             touch-action: none;
         }
 
-        button {
-            border: none;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        #insertCoin {
-            display: none;
-        }
-
-        #toggleCatalog {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #0088ff;
-            padding: 8px 12px;
-            font-size: 14px;
-            border-radius: 4px;
-            color: white;
-        }
-
-        #catalog {
-            position: absolute;
-            top: 50px;
-            right: 10px;
-            width: 200px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px;
-            border-radius: 6px;
-            display: none;
-            z-index: 20;
-        }
-
-        #winBanner {
-            position: absolute;
-            top: 90px;
-            left: 50%;
-            transform: translateX(-50%) scale(0.8);
-            padding: 10px 26px;
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid rgba(255, 255, 255, 0.25);
-            border-radius: 18px;
-            color: #fff2b0;
-            font-size: 20px;
-            letter-spacing: 3px;
-            text-shadow: 0 0 10px rgba(255, 242, 176, 0.8);
-            opacity: 0;
-            z-index: 26;
-            pointer-events: none;
-        }
-
-        #winBanner.show {
-            animation: win-pop 1.2s ease-out forwards;
-        }
-
-        @keyframes win-pop {
-            0% { opacity: 0; transform: translateX(-50%) scale(0.6); }
-            20% { opacity: 1; transform: translateX(-50%) scale(1.1); }
-            60% { opacity: 1; transform: translateX(-50%) scale(1); }
-            100% { opacity: 0; transform: translateX(-50%) scale(0.9); }
-        }
-
-        #coinTray {
-            width: 86px;
-            height: 86px;
-            background: rgba(0, 0, 0, 0.35);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-        }
-
-        .panel-coin {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .coin {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #fff3b0, #f1c453 55%, #a97b1d 100%);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            color: #3b2a05;
-            font-weight: bold;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: grab;
-            user-select: none;
-            pointer-events: auto;
-        }
-
-        .coin:active {
-            cursor: grabbing;
-        }
-
-        #coinSlotUI {
-            position: relative;
-            width: 72px;
-            height: 16px;
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid rgba(255, 255, 255, 0.25);
-            border-radius: 10px;
-            transform: rotate(-12deg);
-            z-index: 28;
-            pointer-events: none;
-            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
-            margin-left: -8px;
-        }
-
+        /* Fade In Overlay */
         #fade-overlay {
             position: fixed;
             top: 0;
@@ -159,14 +37,13 @@
             left: 0;
             width: 100%;
             height: 240px;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
             display: flex;
             justify-content: center;
             align-items: flex-end;
             padding-bottom: 30px;
             pointer-events: none;
             transition: opacity 0.5s;
-            z-index: 30;
         }
 
         .control-panel {
@@ -175,23 +52,24 @@
             border-radius: 20px;
             border: 4px solid #c0392b;
             display: flex;
-            gap: 26px;
+            gap: 60px;
+            /* Increased gap since coin button is gone */
             pointer-events: auto;
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
             align-items: center;
-            position: relative;
         }
 
         #joystick-zone {
             width: 120px;
             height: 120px;
             position: relative;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0, 0, 0, 0.3);
             border-radius: 50%;
             border: 4px solid #7f8c8d;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
         }
 
+        /* The visible stick connecting base to knob */
         #joystick-stick {
             position: absolute;
             top: 50%;
@@ -199,12 +77,15 @@
             height: 12px;
             background: linear-gradient(to bottom, #95a5a6, #7f8c8d);
             transform-origin: 0 50%;
+            /* Pivot from center */
             pointer-events: none;
             z-index: 5;
             border-radius: 6px;
             width: 0px;
+            /* Dynamic */
             transform: translate(0, -50%) rotate(0deg);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            /* Centered vertically */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
         }
 
         #joystick-knob {
@@ -216,7 +97,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
             cursor: pointer;
             z-index: 10;
         }
@@ -234,12 +115,10 @@
             cursor: pointer;
             transition: all 0.1s;
         }
-        .btn-action:active { transform: translateY(8px); box-shadow: 0 0 0 #962c22; }
-        .btn-action[disabled] {
-            opacity: 0.5;
-            cursor: not-allowed;
-            filter: grayscale(0.3);
-            box-shadow: none;
+
+        .btn-action:active {
+            transform: translateY(8px);
+            box-shadow: 0 0 0 #962c22;
         }
 
         .display-group {
@@ -247,10 +126,6 @@
             flex-direction: column;
             gap: 5px;
             align-items: center;
-        }
-
-        .display-group.compact .lcd-val {
-            font-size: 22px;
         }
 
         .display {
@@ -263,96 +138,54 @@
             text-align: right;
             min-width: 80px;
         }
-        .lcd-label { font-size: 11px; color: #95a5a6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;}
-        .lcd-val { font-size: 28px; line-height: 1; text-shadow: 0 0 5px #e74c3c; }
 
-        #toggleCatalog {
-            top: 10px;
-            right: 10px;
-            z-index: 40;
+        .lcd-label {
+            font-size: 11px;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
         }
 
-        #catalog h3 {
-            margin: 0 0 8px 0;
-            font-size: 18px;
+        .lcd-val {
+            font-size: 28px;
+            line-height: 1;
+            text-shadow: 0 0 5px #e74c3c;
         }
 
-        .catalog-item {
-            margin: 4px 0;
-            cursor: pointer;
-            padding: 5px;
-            border-bottom: 1px solid #333;
-        }
 
-        .catalog-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .catalog-item span {
-            float: right;
-        }
-
-        canvas {
-            display: block;
-        }
-
-        @media (max-width: 700px) {
-            #ui-layer {
-                height: 200px;
-                padding-bottom: 18px;
-            }
-
-            .control-panel {
-                padding: 14px 18px;
-                gap: 16px;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-
-            #joystick-zone {
-                width: 90px;
-                height: 90px;
-            }
-
-            #joystick-knob {
-                width: 46px;
-                height: 46px;
-            }
-
-            .btn-action {
-                width: 90px;
-                height: 90px;
-                font-size: 1.1rem;
-            }
-
-            #coinTray {
-                width: 64px;
-                height: 64px;
-            }
-
-            .coin {
-                width: 48px;
-                height: 48px;
-                font-size: 10px;
-            }
-
-            .display-group.compact .lcd-val {
-                font-size: 18px;
-            }
-
-            #toggleCatalog {
-                top: 8px;
-                right: 8px;
-                padding: 8px 10px;
-                font-size: 12px;
-            }
+        #collect-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            text-shadow: 0 0 20px #e74c3c;
+            display: none;
+            pointer-events: none;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
+
+    <div id="fade-overlay"></div>
+
+    <div id="collect-msg">PRIZE WON!<br><span style="font-size:20px">Click to Collect</span></div>
+
     <div id="ui-layer">
         <div class="control-panel">
+            <div class="display-group">
+                <div class="lcd-label">Credits</div>
+                <div class="display">
+                    <div class="lcd-val" id="creditDisplay">99</div>
+                </div>
+            </div>
+
+            <!-- Joystick Container -->
             <div id="joystick-zone">
                 <div id="joystick-stick"></div>
                 <div id="joystick-knob"></div>
@@ -361,1479 +194,975 @@
             <button class="btn-action" id="dropBtn">DROP</button>
         </div>
     </div>
-    <canvas></canvas>
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import * as CANNON from 'https://cdn.skypack.dev/cannon-es';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // Audio Manager (Web Audio API)
-        class AudioManager {
-            constructor() {
-                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                this.masterGain = this.ctx.createGain();
-                this.masterGain.connect(this.ctx.destination);
-                this.motorOsc = null;
-                this.motorGain = null;
-                this.isPlayingMotor = false;
-            }
-
-            // Procedural Motor Sound (Whirring)
-            startMotor(pitch = 200) {
-                if (this.isPlayingMotor) return;
-                this.isPlayingMotor = true;
-
-                this.motorOsc = this.ctx.createOscillator();
-                this.motorOsc.type = 'sawtooth';
-                this.motorOsc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
-
-                this.motorGain = this.ctx.createGain();
-                this.motorGain.gain.setValueAtTime(0, this.ctx.currentTime);
-                this.motorGain.gain.linearRampToValueAtTime(0.1, this.ctx.currentTime + 0.1);
-
-                // Filter to muffle it a bit like a motor
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 800;
-
-                this.motorOsc.connect(filter);
-                filter.connect(this.motorGain);
-                this.motorGain.connect(this.masterGain);
-                this.motorOsc.start();
-            }
-
-            stopMotor() {
-                if (!this.isPlayingMotor) return;
-                // "DJ Scratch" / Power down effect
-                const now = this.ctx.currentTime;
-                // Pitch drop
-                this.motorOsc.frequency.exponentialRampToValueAtTime(10, now + 0.3);
-                // Volume cut
-                this.motorGain.gain.linearRampToValueAtTime(0, now + 0.3);
-
-                this.motorOsc.stop(now + 0.3);
-                this.isPlayingMotor = false;
-            }
-
-            playTone(freq, type, duration) {
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.value = freq;
-                osc.connect(gain);
-                gain.connect(this.masterGain);
-                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-                osc.start();
-                osc.stop(this.ctx.currentTime + duration);
-            }
-
-            playWin() {
-                // Arpeggio
-                [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.playTone(f, 'square', 0.4), i * 150));
-            }
-
-            playLose() {
-                [300, 250, 200].forEach((f, i) => setTimeout(() => this.playTone(f, 'triangle', 0.5), i * 300));
-            }
-        }
-        const audio = new AudioManager();
-        // User interaction required to start AudioContext usually, will handle on first input
-
-
-        // UI Elements
-        const creditDisplay = document.getElementById('creditDisplay');
-        const prizeDisplay = document.getElementById('prizeDisplay');
-        const ticketDisplay = document.getElementById('ticketDisplay');
-        const turnDisplay = document.getElementById('turnDisplay');
-
-        // Game State
-        const testMode = new URLSearchParams(window.location.search).get('test') === '1';
-        let prizeCount = 0, freeTurns = 0, turns = 5, credits = 0, tickets = 0;
-        function updateUI() {
-            if (creditDisplay) creditDisplay.textContent = credits;
-            if (prizeDisplay) prizeDisplay.textContent = prizeCount;
-            if (ticketDisplay) ticketDisplay.textContent = tickets;
-            if (turnDisplay) turnDisplay.textContent = turns;
-        }
-
-        // Three.js Setup
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(0, 340, 780);
-        const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas'), antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = false;
-        const MACHINE_SCALE = 84;
-        const WORLD_SCALE = MACHINE_SCALE;
-
-        // Controls
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enablePan = false;
-        controls.minDistance = 320;
-        controls.maxDistance = 1400;
-
-
-        // Lights
-        // Lights
-        scene.background = new THREE.Color(0x3a3a56);
-        scene.fog = new THREE.FogExp2(0x3a3a56, 0.0014);
-
-        const ambientLight = new THREE.AmbientLight(0xe0e0e0, 5.0);
-        scene.add(ambientLight);
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x7a7a96, 3.0);
-        scene.add(hemiLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 5.2);
-        dirLight.position.set(100, 200, 100);
-        dirLight.castShadow = false;
-        scene.add(dirLight);
-
-        const textureLoader = new THREE.TextureLoader();
-        const floorTexture = textureLoader.load('./textures/floor.png');
-        floorTexture.wrapS = THREE.RepeatWrapping;
-        floorTexture.wrapT = THREE.RepeatWrapping;
-        floorTexture.repeat.set(10, 10);
-        if (renderer.capabilities.getMaxAnisotropy) {
-            floorTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        }
-
-        const ceilingTexture = textureLoader.load('./textures/ceiling.png');
-        ceilingTexture.wrapS = THREE.RepeatWrapping;
-        ceilingTexture.wrapT = THREE.RepeatWrapping;
-        ceilingTexture.repeat.set(6, 6);
-        if (renderer.capabilities.getMaxAnisotropy) {
-            ceilingTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        }
-
-        const roomFloorMat = new THREE.MeshStandardMaterial({ map: floorTexture, metalness: 0.1, roughness: 0.85 });
-        const floor = new THREE.Mesh(
-            new THREE.PlaneGeometry(MACHINE_SCALE * 16, MACHINE_SCALE * 16),
-            roomFloorMat
-        );
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.y = -1.2;
-        scene.add(floor);
-
-        // Skybox
-        const skyTex = ceilingTexture.clone();
-        skyTex.wrapS = THREE.RepeatWrapping;
-        skyTex.wrapT = THREE.RepeatWrapping;
-        skyTex.repeat.set(4, 2);
-        skyTex.needsUpdate = true;
-        const skyMat = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, color: 0x222244 });
-        const skySize = MACHINE_SCALE * 24;
-        const skybox = new THREE.Mesh(new THREE.BoxGeometry(skySize, skySize, skySize), skyMat);
-        skybox.position.set(0, skySize * 0.35, 0);
-        scene.add(skybox);
-
-        const roomMat = new THREE.MeshStandardMaterial({
-            color: 0x303040,
-            emissive: 0x151525,
-            emissiveIntensity: 0.25,
-            transparent: true,
-            opacity: 0.35,
-            roughness: 0.85,
-            metalness: 0.05,
-            side: THREE.DoubleSide
-        });
-        const roomSize = MACHINE_SCALE * 16;
-        const roomHeight = MACHINE_SCALE * 10;
-        const roomWallGeo = new THREE.PlaneGeometry(roomSize, roomHeight);
-        const roomHalf = roomSize / 2;
-        const roomWallY = roomHeight / 2;
-        const roomBack = new THREE.Mesh(roomWallGeo, roomMat);
-        roomBack.position.set(0, roomWallY, -roomHalf);
-        scene.add(roomBack);
-        const roomFront = new THREE.Mesh(roomWallGeo, roomMat);
-        roomFront.position.set(0, roomWallY, roomHalf);
-        roomFront.rotation.y = Math.PI;
-        scene.add(roomFront);
-        const roomLeft = new THREE.Mesh(roomWallGeo, roomMat);
-        roomLeft.position.set(-roomHalf, roomWallY, 0);
-        roomLeft.rotation.y = Math.PI / 2;
-        scene.add(roomLeft);
-        const roomRight = new THREE.Mesh(roomWallGeo, roomMat);
-        roomRight.position.set(roomHalf, roomWallY, 0);
-        roomRight.rotation.y = -Math.PI / 2;
-        scene.add(roomRight);
-        const roomCeilMat = new THREE.MeshStandardMaterial({
-            map: ceilingTexture,
-            roughness: 0.85,
-            metalness: 0.05,
-            emissive: 0x202038,
-            emissiveIntensity: 0.2,
-            side: THREE.DoubleSide
-        });
-        const roomCeil = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), roomCeilMat);
-        roomCeil.position.set(0, roomHeight, 0);
-        roomCeil.rotation.x = Math.PI / 2;
-        scene.add(roomCeil);
-
-        const dustCount = 160;
-        const dustPositions = new Float32Array(dustCount * 3);
-        for (let i = 0; i < dustCount; i++) {
-            dustPositions[i * 3] = (Math.random() - 0.5) * 160;
-            dustPositions[i * 3 + 1] = 10 + Math.random() * 70;
-            dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 160;
-        }
-        const dustGeo = new THREE.BufferGeometry();
-        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-        const dustMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.45, depthWrite: false });
-        const dust = new THREE.Points(dustGeo, dustMat);
-        scene.add(dust);
-
-        // Arcade Cabinet Internal SpotLight
-        const spotLight = new THREE.SpotLight(0xffffff, 14.5);
-        spotLight.position.set(0, 230, 60);
-        spotLight.angle = Math.PI / 3.9;
-        spotLight.penumbra = 0.5;
-        spotLight.decay = 2;
-        spotLight.distance = 980;
-        spotLight.target.position.set(0, 0, 0);
-        scene.add(spotLight);
-        scene.add(spotLight.target);
-
-        const cabinetFill = new THREE.PointLight(0xffffff, 4.6, 560);
-        cabinetFill.position.set(0, 120, 44);
-        scene.add(cabinetFill);
-
-        const cabinetFillLow = new THREE.PointLight(0x9bd0ff, 3.8, 520);
-        cabinetFillLow.position.set(0, 64, -36);
-        scene.add(cabinetFillLow);
-
-        const neonCyan = new THREE.PointLight(0x00ffff, 4.4, 1200);
-        neonCyan.position.set(250, 220, 230);
-        scene.add(neonCyan);
-
-        const neonMagenta = new THREE.PointLight(0xff33cc, 4.1, 1100);
-        neonMagenta.position.set(-250, 210, -230);
-        scene.add(neonMagenta);
-
-        const overhead = new THREE.PointLight(0xffffff, 5.6, 2000);
-        overhead.position.set(0, 440, 0);
-        scene.add(overhead);
-
-        const rimWarm = new THREE.PointLight(0xffaa88, 3.4, 980);
-        rimWarm.position.set(-340, 200, 340);
-        scene.add(rimWarm);
-
-        const rimCool = new THREE.PointLight(0x88ccff, 3.4, 980);
-        rimCool.position.set(340, 210, -340);
-        scene.add(rimCool);
-
-        // Light Manager
-        class LightManager {
-            constructor() {
-                this.mode = 'IDLE'; // IDLE, WIN, LOSE, PLAY
-                this.timer = 0;
-                this.leds = [];
-            }
-
-            addLed(mesh) { this.leds.push(mesh); }
-
-            update(dt) {
-                this.timer += dt;
-                const t = this.timer;
-
-                this.leds.forEach((led, i) => {
-                    const mat = led.material;
-                    if (this.mode === 'IDLE') {
-                        // Rainbow Wave
-                        const hue = (t * 0.2 + i * 0.1) % 1;
-                        mat.color.setHSL(hue, 1, 0.5);
-                        mat.emissive.setHSL(hue, 1, 0.5);
-                    } else if (this.mode === 'PLAY') {
-                        mat.color.setHex(0xffaa00);
-                        mat.emissive.setHex(0xffaa00);
-                        mat.emissiveIntensity = 1 + Math.sin(t * 10) * 0.5;
-                    } else if (this.mode === 'WIN') {
-                        // Green Strobe
-                        const on = Math.floor(t * 20) % 2 === 0;
-                        mat.color.setHex(on ? 0x00ff00 : 0x000000);
-                        mat.emissive.setHex(on ? 0x00ff00 : 0x000000);
-                        mat.emissiveIntensity = 2;
-                    } else if (this.mode === 'LOSE') {
-                        // Slow Blue Pulse
-                        const val = 0.5 + Math.sin(t * 2) * 0.5;
-                        mat.color.setHex(0x0000ff);
-                        mat.emissive.setHex(0x0000ff);
-                        mat.emissiveIntensity = val;
-                    }
-                });
-            }
-
-            setMode(m) { this.mode = m; this.timer = 0; }
-        }
-        const lights = new LightManager();
-        const baseAmbientIntensity = ambientLight.intensity;
-        const baseDirIntensity = dirLight.intensity;
-        const baseHemiIntensity = hemiLight.intensity;
-
-
-        // Physics
-        const world = new CANNON.World();
-        world.gravity.set(0, -9.82 * WORLD_SCALE, 0);
-        world.allowSleep = true;
-        world.broadphase = new CANNON.NaiveBroadphase();
-        world.defaultContactMaterial.friction = 0.5;
-        world.defaultContactMaterial.restitution = 0.2;
-        const physicsBodies = new Map();
-        const physicsMeshes = [];
-        const floorMaterial = new CANNON.Material('floor');
-        const objectMaterial = new CANNON.Material('object');
-        world.addContactMaterial(new CANNON.ContactMaterial(floorMaterial, objectMaterial, {
-            friction: 0.6,
-            restitution: 0.15
-        }));
-
-        // Machine Base (with Hole)
-        // Floor pieces to create a hole at bottom-left (-x, +z)
-        const machine = new THREE.Group();
-        scene.add(machine);
-        machine.scale.set(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
-        let gantryBridge;
-        let gantryCarriage;
-        let ropeMesh;
-        let coilMesh;
-        let dragChainMesh;
-        const ROOF_Y = 6;
-        const CLAW_TOP_Y = 5.5;
-        const FLOOR_Y = 2.4;
-        const FLOOR_THICKNESS = 0.5;
-        const FLOOR_TOP_Y = FLOOR_Y + FLOOR_THICKNESS / 2;
-        const CLAW_BOTTOM_Y = FLOOR_TOP_Y - 0.05;
-        const SPAWN_BOUNDS = { minX: -4.6, maxX: 4.6, minZ: -4.6, maxZ: 4.6 };
-        const PRIZE_WALL_HEIGHT = 3.4;
-        const PRIZE_WALL_THICKNESS = 0.08;
-        const PRIZE_WALL_Y = FLOOR_TOP_Y + PRIZE_WALL_HEIGHT / 2;
-        const interiorLight = new THREE.PointLight(0xffffff, 4.2, 260);
-        interiorLight.position.set(0, FLOOR_TOP_Y + 1.6, 0);
-        machine.add(interiorLight);
-        const interiorTopLight = new THREE.PointLight(0xffffff, 5.6, 320);
-        interiorTopLight.position.set(0, ROOF_Y - 0.2, 0);
-        machine.add(interiorTopLight);
-        const interiorFrontLight = new THREE.PointLight(0xfff2dd, 3.6, 220);
-        interiorFrontLight.position.set(0, FLOOR_TOP_Y + 1.2, 3.1);
-        machine.add(interiorFrontLight);
-
-        const baseMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.3, roughness: 0.7 });
-        const interiorFloorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-
-        // Floor Parts (Hole at corner approx -2 to -4 X, 2 to 4 Z)
-        // Main floor right
-        const f1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 8), interiorFloorMat);
-        f1.position.set(2, FLOOR_Y, 0);
-        machine.add(f1);
-
-        // Floor part top-left
-        const f2 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 4), interiorFloorMat);
-        f2.position.set(-2, FLOOR_Y, -2);
-        machine.add(f2);
-
-        function toWorld(v) {
-            return new CANNON.Vec3(v.x * WORLD_SCALE, v.y * WORLD_SCALE, v.z * WORLD_SCALE);
-        }
-
-        function addStaticBox(halfExtents, position, material) {
-            const body = new CANNON.Body({ mass: 0, material });
-            const scaledHalf = new CANNON.Vec3(halfExtents.x * WORLD_SCALE, halfExtents.y * WORLD_SCALE, halfExtents.z * WORLD_SCALE);
-            body.addShape(new CANNON.Box(scaledHalf));
-            const worldPos = toWorld(position);
-            body.position.set(worldPos.x, worldPos.y, worldPos.z);
-            world.addBody(body);
-            return body;
-        }
-
-        function addDynamicBody(mesh, shape, mass = 1) {
-            const body = new CANNON.Body({ mass, material: objectMaterial });
-            body.addShape(shape);
-            const worldPos = toWorld(mesh.position);
-            body.position.set(worldPos.x, worldPos.y, worldPos.z);
-            body.linearDamping = 0.2;
-            body.angularDamping = 0.3;
-            world.addBody(body);
-            physicsBodies.set(mesh, body);
-            physicsMeshes.push(mesh);
-            return body;
-        }
-
-        function removePhysicsForMesh(mesh) {
-            const body = physicsBodies.get(mesh);
-            if (body) {
-                world.removeBody(body);
-                physicsBodies.delete(mesh);
-                const idx = physicsMeshes.indexOf(mesh);
-                if (idx !== -1) physicsMeshes.splice(idx, 1);
-            }
-        }
-
-        // Physics floor pieces (match f1/f2 geometry)
-        addStaticBox(new CANNON.Vec3(2, FLOOR_THICKNESS / 2, 4), new CANNON.Vec3(2, FLOOR_Y, 0), floorMaterial);
-        addStaticBox(new CANNON.Vec3(2, FLOOR_THICKNESS / 2, 2), new CANNON.Vec3(-2, FLOOR_Y, -2), floorMaterial);
-
-        // Physics walls (prize area)
-        addStaticBox(new CANNON.Vec3(4.4, PRIZE_WALL_HEIGHT / 2, PRIZE_WALL_THICKNESS / 2), new CANNON.Vec3(0, PRIZE_WALL_Y, 4.4), floorMaterial);
-        addStaticBox(new CANNON.Vec3(4.4, PRIZE_WALL_HEIGHT / 2, PRIZE_WALL_THICKNESS / 2), new CANNON.Vec3(0, PRIZE_WALL_Y, -4.4), floorMaterial);
-        addStaticBox(new CANNON.Vec3(PRIZE_WALL_THICKNESS / 2, PRIZE_WALL_HEIGHT / 2, 4.4), new CANNON.Vec3(4.4, PRIZE_WALL_Y, 0), floorMaterial);
-        addStaticBox(new CANNON.Vec3(PRIZE_WALL_THICKNESS / 2, PRIZE_WALL_HEIGHT / 2, 4.4), new CANNON.Vec3(-4.4, PRIZE_WALL_Y, 0), floorMaterial);
-
-        // Machine glass walls handled by overhaul cabinet visuals.
-        // Chute (aligned with hole at -2, 2 in machine coordinates)
-        const chuteBaseMat = new THREE.MeshStandardMaterial({ color: 0xffcc33, metalness: 0.2, roughness: 0.6 });
-        const chuteGlowMat = new THREE.MeshStandardMaterial({
-            color: 0xffee88,
-            emissive: 0xffcc55,
-            emissiveIntensity: 1.2,
-            metalness: 0.1,
-            roughness: 0.3
-        });
-        const chuteBase = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.14, 1.0), chuteBaseMat);
-        chuteBase.position.set(-2, FLOOR_TOP_Y + 0.06, 2);
-        machine.add(chuteBase);
-        const chuteRim = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.05, 1.16), chuteGlowMat);
-        chuteRim.position.set(-2, FLOOR_TOP_Y + 0.12, 2);
-        machine.add(chuteRim);
-
-        // Cabinet + gantry (overhaul layout, scaled to current machine units)
-        const OVERHAUL_SCALE = 8.8 / 90;
-        const OVERHAUL_FLOOR_Y = -40;
-        const OVERHAUL_OFFSET_Y = FLOOR_Y - (OVERHAUL_FLOOR_Y * OVERHAUL_SCALE);
-        const o = (v) => v * OVERHAUL_SCALE;
-        const oy = (v) => v * OVERHAUL_SCALE + OVERHAUL_OFFSET_Y;
-        const GANTRY_Y = oy(80);
-
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-        const glassMat = new THREE.MeshPhysicalMaterial({
-            color: 0xffffff,
-            transmission: 0.95,
-            opacity: 0.1,
-            transparent: true,
-            roughness: 0.05,
-            metalness: 0.1,
-            clearcoat: 1.0,
-            clearcoatRoughness: 0.0
-        });
-        const metalMat = new THREE.MeshStandardMaterial({ color: 0xff4757, roughness: 0.3, metalness: 0.4 });
-        const chromeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1, metalness: 0.9 });
-        const railMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 });
-
-        const cabinetFloor = new THREE.Mesh(new THREE.BoxGeometry(o(100), o(4), o(100)), floorMat);
-        cabinetFloor.position.y = oy(-40);
-        machine.add(cabinetFloor);
-
-        const cabinetCeiling = new THREE.Mesh(new THREE.BoxGeometry(o(100), o(4), o(100)), metalMat);
-        cabinetCeiling.position.y = oy(90);
-        machine.add(cabinetCeiling);
-
-        const marquee = new THREE.Mesh(new THREE.BoxGeometry(o(104), o(16), o(104)), metalMat);
-        marquee.position.y = oy(100);
-        machine.add(marquee);
-
-        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffd27a });
-        const frontGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
-        frontGlow.position.set(0, oy(100), o(53));
-        machine.add(frontGlow);
-        const backGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
-        backGlow.position.set(0, oy(100), o(-53));
-        backGlow.rotation.y = Math.PI;
-        machine.add(backGlow);
-        const leftGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
-        leftGlow.position.set(o(-53), oy(100), 0);
-        leftGlow.rotation.y = -Math.PI / 2;
-        machine.add(leftGlow);
-        const rightGlow = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(10)), glowMat);
-        rightGlow.position.set(o(53), oy(100), 0);
-        rightGlow.rotation.y = Math.PI / 2;
-        machine.add(rightGlow);
-
-        const pillarGeo = new THREE.BoxGeometry(o(4), o(130), o(4));
-        const pillarPositions = [[-48, 25, -48], [48, 25, -48], [-48, 25, 48], [48, 25, 48]];
-        pillarPositions.forEach(pos => {
-            const p = new THREE.Mesh(pillarGeo, metalMat);
-            p.position.set(o(pos[0]), oy(pos[1]), o(pos[2]));
-            machine.add(p);
-            const cap = new THREE.Mesh(new THREE.BoxGeometry(o(6), o(2), o(6)), chromeMat);
-            cap.position.set(o(pos[0]), oy(90), o(pos[2]));
-            machine.add(cap);
-            const base = new THREE.Mesh(new THREE.BoxGeometry(o(6), o(2), o(6)), chromeMat);
-            base.position.set(o(pos[0]), oy(-38), o(pos[2]));
-            machine.add(base);
-        });
-
-        const backGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
-        backGlass.position.set(0, oy(25), o(-48));
-        machine.add(backGlass);
-        const leftGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
-        leftGlass.rotation.y = Math.PI / 2;
-        leftGlass.position.set(o(-48), oy(25), 0);
-        machine.add(leftGlass);
-        const rightGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
-        rightGlass.rotation.y = -Math.PI / 2;
-        rightGlass.position.set(o(48), oy(25), 0);
-        machine.add(rightGlass);
-        const frontGlass = new THREE.Mesh(new THREE.PlaneGeometry(o(90), o(130)), glassMat);
-        frontGlass.position.set(0, oy(25), o(48));
-        machine.add(frontGlass);
-
-        const sideRailGeo = new THREE.CylinderGeometry(o(0.8), o(0.8), o(94), 12);
-        sideRailGeo.rotateX(Math.PI / 2);
-        const leftSideRail = new THREE.Mesh(sideRailGeo, railMat);
-        leftSideRail.position.set(o(-49), oy(73.7), 0);
-        machine.add(leftSideRail);
-        const rightSideRail = new THREE.Mesh(sideRailGeo, railMat);
-        rightSideRail.position.set(o(49), oy(73.7), 0);
-        machine.add(rightSideRail);
-
-        const chuteGroup = new THREE.Group();
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        const w1 = new THREE.Mesh(new THREE.BoxGeometry(o(32), o(10), o(2)), wallMat); w1.position.z = o(-16);
-        const w2 = new THREE.Mesh(new THREE.BoxGeometry(o(32), o(10), o(2)), wallMat); w2.position.z = o(16);
-        const w3 = new THREE.Mesh(new THREE.BoxGeometry(o(2), o(10), o(32)), wallMat); w3.position.x = o(16);
-        const w4 = new THREE.Mesh(new THREE.BoxGeometry(o(2), o(10), o(32)), wallMat); w4.position.x = o(-16);
-        chuteGroup.add(w1, w2, w3, w4);
-        const hole = new THREE.Mesh(new THREE.BoxGeometry(o(30), o(2), o(30)), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-        hole.position.y = o(-4);
-        chuteGroup.add(hole);
-        chuteGroup.position.set(o(-34), oy(-33), o(34));
-        machine.add(chuteGroup);
-
-        const retrievalBox = new THREE.Mesh(new THREE.BoxGeometry(o(30), o(20), o(30)), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-        retrievalBox.position.set(o(-34), oy(-60), o(40));
-        machine.add(retrievalBox);
-
-        const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(o(40), o(30), o(2)), metalMat);
-        doorFrame.position.set(0, oy(-60), o(50));
-        machine.add(doorFrame);
-        const doorFlap = new THREE.Mesh(new THREE.BoxGeometry(o(34), o(24), o(2)), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 }));
-        doorFlap.position.set(0, oy(-60), o(51));
-        doorFlap.rotation.x = -0.2;
-        machine.add(doorFlap);
-
-        // Gantry (overhaul)
-        const railMatG = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 });
-        const carriageMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.7 });
-        const aluminumMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, metalness: 0.5, roughness: 0.5 });
-        const beltMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-        const motorBodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
-
-        gantryBridge = new THREE.Group();
-        const endPlateGeo = new THREE.BoxGeometry(o(1), o(10), o(12));
-        const leftPlate = new THREE.Mesh(endPlateGeo, aluminumMat); leftPlate.position.x = o(-48);
-        const rightPlate = new THREE.Mesh(endPlateGeo, aluminumMat); rightPlate.position.x = o(48);
-        const wheelGeo = new THREE.CylinderGeometry(o(1.5), o(1.5), o(1), 16); wheelGeo.rotateZ(Math.PI / 2);
-        const lw1 = new THREE.Mesh(wheelGeo, aluminumMat); lw1.position.set(o(-49), o(-4), o(4));
-        const lw2 = new THREE.Mesh(wheelGeo, aluminumMat); lw2.position.set(o(-49), o(-4), o(-4));
-        const rw1 = new THREE.Mesh(wheelGeo, aluminumMat); rw1.position.set(o(49), o(-4), o(4));
-        const rw2 = new THREE.Mesh(wheelGeo, aluminumMat); rw2.position.set(o(49), o(-4), o(-4));
-        gantryBridge.add(leftPlate, rightPlate, lw1, lw2, rw1, rw2);
-        const railGeo = new THREE.CylinderGeometry(o(0.5), o(0.5), o(96), 12); railGeo.rotateZ(Math.PI / 2);
-        const rail1 = new THREE.Mesh(railGeo, railMatG); rail1.position.z = o(-3);
-        const rail2 = new THREE.Mesh(railGeo, railMatG); rail2.position.z = o(3);
-        const mountGeo = new THREE.BoxGeometry(o(2), o(3), o(2));
-        const m1 = new THREE.Mesh(mountGeo, aluminumMat); m1.position.set(o(-47), 0, o(-3));
-        const m2 = new THREE.Mesh(mountGeo, aluminumMat); m2.position.set(o(47), 0, o(-3));
-        const m3 = new THREE.Mesh(mountGeo, aluminumMat); m3.position.set(o(-47), 0, o(3));
-        const m4 = new THREE.Mesh(mountGeo, aluminumMat); m4.position.set(o(47), 0, o(3));
-        gantryBridge.add(rail1, rail2, m1, m2, m3, m4);
-        const nemaGeo = new THREE.BoxGeometry(o(4), o(4), o(4));
-        const motorBody = new THREE.Mesh(nemaGeo, motorBodyMat); motorBody.position.set(o(-44), o(2), o(-5)); gantryBridge.add(motorBody);
-        const beltLoopGeo = new THREE.BoxGeometry(o(88), o(0.2), o(0.5));
-        const beltTop = new THREE.Mesh(beltLoopGeo, beltMat); beltTop.position.set(0, o(2.5), o(-4));
-        const beltBot = new THREE.Mesh(beltLoopGeo, beltMat); beltBot.position.set(0, o(1.5), o(-4));
-        gantryBridge.add(beltTop, beltBot);
-        const pulleyGeo = new THREE.CylinderGeometry(o(0.8), o(0.8), o(0.6), 16);
-        const p1 = new THREE.Mesh(pulleyGeo, aluminumMat); p1.position.set(o(-44), o(2), o(-4));
-        const p2 = new THREE.Mesh(pulleyGeo, aluminumMat); p2.position.set(o(44), o(2), o(-4));
-        gantryBridge.add(p1, p2);
-        gantryBridge.position.y = GANTRY_Y;
-        machine.add(gantryBridge);
-
-        gantryCarriage = new THREE.Group();
-        const carriageBody = new THREE.Mesh(new THREE.BoxGeometry(o(8), o(2), o(9)), carriageMat); gantryCarriage.add(carriageBody);
-        const bearingGeo = new THREE.CylinderGeometry(o(1), o(1), o(3), 12); bearingGeo.rotateZ(Math.PI / 2);
-        const b1 = new THREE.Mesh(bearingGeo, aluminumMat); b1.position.set(o(-2), o(-1), o(3));
-        const b2 = new THREE.Mesh(bearingGeo, aluminumMat); b2.position.set(o(2), o(-1), o(3));
-        const b3 = new THREE.Mesh(bearingGeo, aluminumMat); b3.position.set(o(-2), o(-1), o(-3));
-        const b4 = new THREE.Mesh(bearingGeo, aluminumMat); b4.position.set(o(2), o(-1), o(-3));
-        gantryCarriage.add(b1, b2, b3, b4);
-        const clampGeo = new THREE.BoxGeometry(o(2), o(1), o(1));
-        const clamp = new THREE.Mesh(clampGeo, aluminumMat); clamp.position.set(0, o(1), o(-4)); gantryCarriage.add(clamp);
-        const spoolGeo = new THREE.CylinderGeometry(o(1.5), o(1.5), o(4), 16); spoolGeo.rotateX(Math.PI / 2);
-        const spool = new THREE.Mesh(spoolGeo, new THREE.MeshStandardMaterial({ color: 0xffffff })); spool.position.set(0, o(2), 0); gantryCarriage.add(spool);
-        const grommet = new THREE.Mesh(new THREE.TorusGeometry(o(0.5), o(0.1), 8, 16), aluminumMat); grommet.rotation.x = Math.PI / 2; grommet.position.y = o(-1.1); gantryCarriage.add(grommet);
-        const zMotorBody = new THREE.Mesh(new THREE.BoxGeometry(o(3), o(3), o(3)), motorBodyMat); zMotorBody.position.set(o(3), o(2.5), o(2)); gantryCarriage.add(zMotorBody);
-        gantryBridge.add(gantryCarriage);
-
-        const WIGGLE_STIFFNESS = 0.015;
-        const WIGGLE_DAMPING = 0.98;
-        const clawTarget = new THREE.Vector3(0, 0, 0);
-        const clawPos = new THREE.Vector3(0, 0, 0);
-        const clawWiggleVel = new THREE.Vector3(0, 0, 0);
-
-        // Claw
-        const clawGroup = new THREE.Group();
-        // Pivot group for physics wiggle
-        const clawPivot = new THREE.Group();
-        clawGroup.add(clawPivot);
-        clawGroup.position.set(0, CLAW_TOP_Y, 0); // Lower start pos
-        machine.add(clawGroup);
-        clawTarget.set(clawGroup.position.x, 0, clawGroup.position.z);
-        clawPos.set(clawGroup.position.x, 0, clawGroup.position.z);
-
-        const clawLight = new THREE.PointLight(0xffffff, 3.4, 240);
-        clawLight.position.set(0, -0.6, 0);
-        clawGroup.add(clawLight);
-
-        const ropeContainer = new THREE.Group();
-        const ropeGeo = new THREE.CylinderGeometry(o(0.15), o(0.15), 1);
-        ropeGeo.rotateX(-Math.PI / 2);
-        ropeGeo.translate(0, 0, 0.5);
-        const ropeBody = new THREE.Mesh(ropeGeo, new THREE.MeshBasicMaterial({ color: 0x111111 }));
-        ropeContainer.add(ropeBody);
-        ropeMesh = ropeContainer;
-        machine.add(ropeMesh);
-
-        class HelixCurve extends THREE.Curve {
-            getPoint(t) {
-                const loops = 12;
-                const angle = t * Math.PI * 2 * loops;
-                const radius = o(0.8);
-                const x = radius * Math.cos(angle);
-                const z = radius * Math.sin(angle);
-                const y = -t * o(20);
-                return new THREE.Vector3(x, y, z);
-            }
-        }
-        const coilPath = new HelixCurve();
-        const coilGeo = new THREE.TubeGeometry(coilPath, 128, o(0.15), 6, false);
-        coilGeo.rotateX(-Math.PI / 2);
-        coilGeo.translate(0, 0, o(10));
-        const coilBody = new THREE.Mesh(coilGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
-        const coilContainer = new THREE.Group();
-        coilContainer.add(coilBody);
-        coilMesh = coilContainer;
-        machine.add(coilMesh);
-
-        const chainPath = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, 0)
-        ]);
-        const chainGeo = new THREE.TubeGeometry(chainPath, 16, o(0.8), 4, false);
-        dragChainMesh = new THREE.Mesh(chainGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
-        machine.add(dragChainMesh);
-
-        // Confetti for win feedback
-        const confettiCount = 220;
-        const confettiPositions = new Float32Array(confettiCount * 3);
-        const confettiVel = new Float32Array(confettiCount * 3);
-        const confettiColors = new Float32Array(confettiCount * 3);
-        const confettiGeo = new THREE.BufferGeometry();
-        confettiGeo.setAttribute('position', new THREE.BufferAttribute(confettiPositions, 3));
-        confettiGeo.setAttribute('color', new THREE.BufferAttribute(confettiColors, 3));
-        const confettiMat = new THREE.PointsMaterial({ size: 0.18, vertexColors: true, transparent: true, opacity: 0.95 });
-        const confetti = new THREE.Points(confettiGeo, confettiMat);
-        confetti.visible = false;
-        machine.add(confetti);
-        let confettiLife = 0;
-
-        function spawnConfetti(origin) {
-            for (let i = 0; i < confettiCount; i++) {
-                const idx = i * 3;
-                confettiPositions[idx] = origin.x + (Math.random() - 0.5) * 2.8;
-                confettiPositions[idx + 1] = origin.y + (Math.random() * 2.2);
-                confettiPositions[idx + 2] = origin.z + (Math.random() - 0.5) * 2.8;
-                confettiVel[idx] = (Math.random() - 0.5) * 3.5;
-                confettiVel[idx + 1] = 3 + Math.random() * 3.5;
-                confettiVel[idx + 2] = (Math.random() - 0.5) * 3.5;
-                const color = new THREE.Color().setHSL(Math.random(), 0.9, 0.6);
-                confettiColors[idx] = color.r;
-                confettiColors[idx + 1] = color.g;
-                confettiColors[idx + 2] = color.b;
-            }
-            confettiGeo.attributes.position.needsUpdate = true;
-            confettiGeo.attributes.color.needsUpdate = true;
-            confetti.visible = true;
-            confettiLife = 2.4;
-        }
-
-        const dropButton = document.getElementById('dropBtn');
-        let clawReady = false;
-        dropButton.disabled = true;
-
-        const winBanner = document.getElementById('winBanner');
-        let winFlash = 0;
-
-        // Custom Claw Model
-        const fingers = [];
-        const clawLoader = new GLTFLoader();
-        clawLoader.load('./models/custom_claw.glb', (gltf) => {
-            const model = gltf.scene;
-            model.scale.set(0.25, 0.25, 0.25); // Reduced 10x
-            model.position.y = -0.2;
-            clawPivot.add(model);
-
-            // Find fingers and assign explicit axes by name/index
-            model.traverse((child) => {
-                if (child.name.startsWith('Finger')) {
-                    fingers.push(child);
-                }
-            });
-            // Sort to ensure 1, 2, 3 order
-            fingers.sort((a, b) => a.name.localeCompare(b.name));
-
-            fingers.forEach((child, i) => {
-                // Assume 3 fingers at 0, 120, 240 degrees
-                // If origins are 0,0,0, we force this distribution
-                const angle = i * (Math.PI * 2 / 3);
-                // Tangent vector for rotation axis (Perpendicular to radius)
-                // Radius assumed closely aligned with angle. Tangent is (-sin, 0, cos)
-                child.userData.axis = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle)).normalize();
-                child.userData.currentAngle = 0;
-            });
-            clawReady = true;
-            dropButton.disabled = false;
-        }, undefined, (err) => console.error('Error loading claw:', err));
-
-
-
-        // Balls & Prizes
-        const balls = [];
-        const prizeSpawnSpheres = [];
-
-        function isHole(x, z) {
-            return Math.hypot(x + 2, z - 2) < 1.4;
-        }
-
-        function getPrizeSpawnPosition(radius) {
-            for (let attempt = 0; attempt < 50; attempt++) {
-                const minX = SPAWN_BOUNDS.minX + radius;
-                const maxX = SPAWN_BOUNDS.maxX - radius;
-                const minZ = SPAWN_BOUNDS.minZ + radius;
-                const maxZ = SPAWN_BOUNDS.maxZ - radius;
-                if (minX >= maxX || minZ >= maxZ) break;
-                const x = minX + Math.random() * (maxX - minX);
-                const z = minZ + Math.random() * (maxZ - minZ);
-                if (isHole(x, z)) continue;
-                let ok = true;
-                for (const s of prizeSpawnSpheres) {
-                    if (Math.hypot(x - s.x, z - s.z) < radius + s.r + 0.2) {
-                        ok = false;
-                        break;
-                    }
-                }
-                if (ok) {
-                    prizeSpawnSpheres.push({ x, z, r: radius });
-                    return { x, z };
-                }
-            }
-            const fallback = {
-                x: (SPAWN_BOUNDS.minX + SPAWN_BOUNDS.maxX) * 0.5,
-                z: (SPAWN_BOUNDS.minZ + SPAWN_BOUNDS.maxZ) * 0.5
-            };
-            return fallback;
-        }
-
-        function getBallSpawnPosition() {
-            for (let attempt = 0; attempt < 30; attempt++) {
-                const radius = 0.2;
-                const minX = SPAWN_BOUNDS.minX + radius;
-                const maxX = SPAWN_BOUNDS.maxX - radius;
-                const minZ = SPAWN_BOUNDS.minZ + radius;
-                const maxZ = SPAWN_BOUNDS.maxZ - radius;
-                const x = minX + Math.random() * (maxX - minX);
-                const z = minZ + Math.random() * (maxZ - minZ);
-                if (isHole(x, z)) continue;
-                return { x, z };
-            }
-            return { x: 0, z: 0 };
-        }
-
-        for (let i = 0; i < 80; i++) {
-            // 5x absolute scale (relative to original) means 0.5 local scale inside 10x machine
-            const b = new THREE.Mesh(
-                new THREE.SphereGeometry(0.15, 16, 16),
-                new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 1, 0.5) })
-            );
-            const spawn = getBallSpawnPosition();
-            b.position.set(spawn.x, FLOOR_TOP_Y + 0.15 + 0.05, spawn.z);
-            b.userData.type = 'ball';
-            b.userData.mass = 0.6;
-            machine.add(b);
-            balls.push(b);
-            const ballShape = new CANNON.Sphere(0.15 * WORLD_SCALE);
-            b.userData.bodyRadius = 0.15;
-            addDynamicBody(b, ballShape, b.userData.mass);
-        }
-
-        const loader = new GLTFLoader();
-        const prizes = [];
-        // Updated model list based on directory contents
-        const modelNames = ['bethany', 'caleb', 'connie', 'maia', 'donald', 'eric', 'kristen', 'kyle', 'rochelle', 'vickie'];
-
-        modelNames.forEach(name => {
-            // Using relative path assuming index.html is in root and models in models/
-            loader.load(`./models/${name}.glb`, (gltf) => {
-                const m = gltf.scene;
-                // Scale 1/3 of 5.0 is approx 1.66
-                // 5x absolute scale -> 0.5x local (Original 1.7 * 0.5 = 0.85)
-                m.scale.set(PRIZE_SCALE, PRIZE_SCALE, PRIZE_SCALE);
-                m.userData.baseScale = new THREE.Vector3(PRIZE_SCALE, PRIZE_SCALE, PRIZE_SCALE);
-                m.userData.mass = 1.8;
-                m.userData.type = 'prize';
-                m.position.set(0, 0, 0);
-                m.updateMatrixWorld(true);
-                const bounds = new THREE.Box3().setFromObject(m);
-                const sphere = new THREE.Sphere();
-                bounds.getBoundingSphere(sphere);
-                const visualRadius = Math.max(0.6, sphere.radius / MACHINE_SCALE);
-                const physicsRadius = Math.min(1.1, Math.max(0.45, visualRadius * 0.32));
-                const spawn = getPrizeSpawnPosition(physicsRadius);
-                m.position.set(spawn.x, FLOOR_TOP_Y + physicsRadius + 0.08, spawn.z);
-                machine.add(m);
-                prizes.push(m);
-                m.userData.bodyRadius = physicsRadius;
-                m.userData.visualRadius = visualRadius;
-                const prizeShape = new CANNON.Sphere(physicsRadius * WORLD_SCALE);
-                addDynamicBody(m, prizeShape, m.userData.mass);
-            }, undefined, (error) => {
-                console.error(`Error loading ${name}.glb:`, error);
-            });
-        });
-
-        // Game Logic & Controls
-        const CLAW_STATES = {
-            IDLE: 0,
-            DROPPING: 1,
-            WAIT_BOTTOM: 2,
-            CLOSING: 3,
-            WAIT_GRAB: 4,
-            RISING: 5,
-            MOVING_CORNER: 6,
-            WIGGLE_STOP: 7,
-            WAIT_DROP: 8,
-            OPENING: 9,
-            RETURNING: 10
+    <script>
+        // --- Game Config (Slowed Down) ---
+        const CONFIG = {
+            cabinetWidth: 100,
+            cabinetDepth: 100,
+            floorY: -40,
+            clawSpeed: 0.5,      // Reduced
+            dropSpeed: 0.8,      // Reduced
+            clawRestY: 60,
+            winRatio: 0.3,
+            wiggleStiffness: 0.015, // Softer sway
+            wiggleDamping: 0.98
         };
 
-        let clawState = CLAW_STATES.IDLE;
-        let stateTimer = 0;
-        let grabbed = null;
-        let grabbedBody = null;
-        let clawVelocity = { x: 0, z: 0 };
-        const keyState = { left: false, right: false, up: false, down: false };
-        const CLAW_SPEED = 0.05;
-        const LIMIT_X = 3.5;
-        const LIMIT_Z = 3.5;
-        const GRAB_RADIUS = 3.6;
-        const GRAB_BASE_CHANCE = 0.85;
-        const SLIP_BASE = 0.035;
-        const SLIP_GRIP_PENALTY = 0.15;
-        const SLIP_WEIGHT_PENALTY = 0.08;
-        const WEIGHT_MAP = { ball: 0.8, prize: 1.2 };
-        const PRIZE_SCALE = 2.125;
-        let currentSlipRisk = 0;
-        // Start open with negative angle
-        let targetFingerAngle = -Math.PI / 4;
+        // --- Global State ---
+        let state = {
+            credits: 99,
+            status: 'STARTUP', // STARTUP, IDLE, MOVING, DROPPING, GRABBING, LIFTING, RETURNING, RELEASING, WIN_SEQUENCE, RESETTING
+            gantryX: -45,
+            gantryZ: -40,
+            clawY: CONFIG.clawRestY,
+            clawOpen: true,
+            heldPrize: null,
+            clawPos: { x: -45, z: -40 },
+            clawVel: { x: 0, z: 0 },
+            cameraMode: 'GAME', // GAME, TRANSITION_TO_PRIZE, PRIZE_VIEW, TRANSITION_TO_GAME
+            wonPrize: null
+        };
 
-        // Joystick
-        const joystickZone = document.getElementById('joystick-zone');
-        const joystickKnob = document.getElementById('joystick-knob');
-        const joystickStick = document.getElementById('joystick-stick');
-        const joystickManager = nipplejs.create({
-            zone: joystickZone,
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
-            color: 'red'
-        });
+        let playerInput = { up: false, down: false, left: false, right: false, analogX: 0, analogY: 0 };
 
-        joystickManager.on('move', (evt, data) => {
-            if (!data.vector) return;
-            if (clawState === CLAW_STATES.IDLE) {
-                audio.ctx.resume(); // Ensure context is running
-                clawVelocity.x = data.vector.x * CLAW_SPEED;
-                clawVelocity.z = -data.vector.y * CLAW_SPEED;
-                const speed = Math.hypot(clawVelocity.x, clawVelocity.z);
-                audio.startMotor(200 + speed * 1000);
+        // --- Three.js Globals ---
+        let scene, camera, renderer;
+        let clawGroup, gantryBridge, gantryCarriage, ropeMesh, coilMesh, dragChainMesh;
+        let prizes = [];
+        let fingers = [];
+        let dropTargetY = CONFIG.floorY;
+        let ledStrips = [];
+        let ledPointLights = [];
+        let particles = []; // For confetti
+
+        let loadedClawModel = null;
+        const loadedPrizeModels = {};
+        const prizeFiles = [
+            'bethany.glb', 'caleb.glb', 'connie.glb', 'donald.glb', 'eric.glb',
+            'kristen.glb', 'kyle.glb', 'maia.glb', 'rochelle.glb', 'vickie.glb'
+        ];
+
+        function loadAssets(onComplete) {
+            const loader = new THREE.GLTFLoader();
+            let itemsToLoad = 1 + prizeFiles.length; // Claw + prizes
+            let itemsLoaded = 0;
+
+            function checkDone() {
+                itemsLoaded++;
+                if (itemsLoaded >= itemsToLoad) onComplete();
             }
-            if (joystickKnob && joystickStick) {
-                const maxDist = 36;
-                const x = data.vector.x * maxDist;
-                const y = data.vector.y * maxDist;
-                joystickKnob.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
-                const length = Math.min(maxDist, Math.hypot(x, y));
-                const angle = Math.atan2(y, x);
-                joystickStick.style.width = `${length}px`;
-                joystickStick.style.transform = `translate(0, -50%) rotate(${angle}rad)`;
-            }
-        });
 
-        joystickManager.on('end', () => {
-            clawVelocity.x = 0;
-            clawVelocity.z = 0;
-            audio.stopMotor();
-            if (joystickKnob && joystickStick) {
-                joystickKnob.style.transform = 'translate(-50%, -50%)';
-                joystickStick.style.width = '0px';
-                joystickStick.style.transform = 'translate(0, -50%) rotate(0deg)';
-            }
-        });
-
-        function applyKeyboardMovement() {
-            if (clawState !== CLAW_STATES.IDLE) return;
-            const x = (keyState.right ? 1 : 0) - (keyState.left ? 1 : 0);
-            const z = (keyState.down ? 1 : 0) - (keyState.up ? 1 : 0);
-            clawVelocity.x = x * CLAW_SPEED;
-            clawVelocity.z = z * CLAW_SPEED;
-            if (x !== 0 || z !== 0) {
-                const speed = Math.hypot(clawVelocity.x, clawVelocity.z);
-                audio.startMotor(200 + speed * 1000);
-            } else {
-                audio.stopMotor();
-            }
-        }
-
-        function forcePrizeUnderClaw() {
-            if (!testMode || prizes.length === 0) return;
-            let closest = prizes[0];
-            let best = clawGroup.position.distanceTo(prizes[0].position);
-            for (let i = 1; i < prizes.length; i++) {
-                const d = clawGroup.position.distanceTo(prizes[i].position);
-                if (d < best) { best = d; closest = prizes[i]; }
-            }
-            const liftY = CLAW_BOTTOM_Y - (closest.userData.bodyRadius ?? 0.6);
-            closest.position.set(clawGroup.position.x, Math.max(FLOOR_TOP_Y + 0.4, liftY), clawGroup.position.z);
-            const body = physicsBodies.get(closest);
-            if (body) {
-                const worldPos = toWorld(closest.position);
-                body.position.set(worldPos.x, worldPos.y, worldPos.z);
-                body.velocity.set(0, 0, 0);
-                body.angularVelocity.set(0, 0, 0);
-            }
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                dropClaw();
-                return;
-            }
-            if (e.key === 'b' || e.key === 'B') {
-                forcePrizeUnderClaw();
-                return;
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'left' || e.key === 'a' || e.key === 'A') keyState.left = true;
-            if (e.key === 'ArrowRight' || e.key === 'right' || e.key === 'd' || e.key === 'D') keyState.right = true;
-            if (e.key === 'ArrowUp' || e.key === 'up' || e.key === 'w' || e.key === 'W') keyState.up = true;
-            if (e.key === 'ArrowDown' || e.key === 'down' || e.key === 's' || e.key === 'S') keyState.down = true;
-            applyKeyboardMovement();
-        });
-
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowLeft' || e.key === 'left' || e.key === 'a' || e.key === 'A') keyState.left = false;
-            if (e.key === 'ArrowRight' || e.key === 'right' || e.key === 'd' || e.key === 'D') keyState.right = false;
-            if (e.key === 'ArrowUp' || e.key === 'up' || e.key === 'w' || e.key === 'W') keyState.up = false;
-            if (e.key === 'ArrowDown' || e.key === 'down' || e.key === 's' || e.key === 'S') keyState.down = false;
-            applyKeyboardMovement();
-        });
-
-        // Drop Button
-        dropButton.onclick = dropClaw;
-
-        function setFingers(open) {
-            targetFingerAngle = open ? -Math.PI / 2.5 : Math.PI / 4; // Wide open / Tight close
-        }
-
-
-        function dropClaw() {
-
-            audio.ctx.resume();
-            if (!clawReady) return;
-            if (clawState === CLAW_STATES.IDLE && (turns > 0 || credits > 0)) {
-                if (turns > 0) {
-                    turns--;
-                } else if (credits > 0) {
-                    credits--;
-                }
-
-                clawState = CLAW_STATES.DROPPING;
-                clawVelocity.x = 0;
-                clawVelocity.z = 0;
-                lights.setMode('PLAY');
-                setFingers(true);
-                updateUI();
-                audio.startMotor(150); // Lower pitch for drop
-            } else if (turns === 0 && credits === 0) {
-                alert("Insert Coin!");
-            }
-        }
-
-        function tryGrab() {
-            let found = null;
-            let best = Infinity;
-            [...balls, ...prizes].forEach(obj => {
-                const d = clawGroup.position.distanceTo(obj.position);
-                if (d < GRAB_RADIUS && d < best) {
-                    best = d;
-                    found = obj;
-                }
+            // Load Claw
+            loader.load('models/custom_claw.glb', (gltf) => {
+                loadedClawModel = gltf.scene;
+                // Scale adjustment if needed (heuristic)
+                loadedClawModel.scale.set(5, 5, 5);
+                checkDone();
+            }, undefined, (err) => {
+                console.error("Error loading claw:", err);
+                checkDone(); // Proceed anyway
             });
-            if (found) {
-                const type = found.userData.type || 'prize';
-                const weight = WEIGHT_MAP[type] || 1;
-                const gripQuality = Math.max(0, 1 - (best / GRAB_RADIUS));
-                const chance = testMode ? 1 : Math.min(1, GRAB_BASE_CHANCE * gripQuality * (1 / weight));
-                if (Math.random() < chance) {
-                    grabbed = found;
-                    grabbed.userData.gripQuality = gripQuality;
-                    grabbed.userData.weight = weight;
-                    const radius = grabbed.userData.bodyRadius ?? 0.6;
-                    const minCenterY = FLOOR_TOP_Y + radius;
-                    const maxOffset = Math.max(0.3, clawGroup.position.y - minCenterY);
-                    grabbed.userData.grabOffset = Math.min(radius + 0.3, maxOffset);
-                    const body = physicsBodies.get(grabbed);
-                    if (body) {
-                        grabbedBody = body;
-                        body.type = CANNON.Body.KINEMATIC;
-                        body.mass = 0;
-                        body.updateMassProperties();
-                        body.velocity.set(0, 0, 0);
-                        body.angularVelocity.set(0, 0, 0);
-                        body.collisionResponse = false;
+
+            // Load Prizes
+            prizeFiles.forEach(file => {
+                loader.load('models/prizes/' + file, (gltf) => {
+                    loadedPrizeModels[file] = gltf.scene;
+                    checkDone();
+                }, undefined, (err) => {
+                    console.error("Error loading prize " + file, err);
+                    checkDone();
+                });
+            });
+        }
+
+
+        // --- Marquee Globals ---
+        let marqueeTexture, marqueeCtx;
+        let marqueeState = {
+            mode: 'SCROLL',
+            offset: 0,
+            phrases: [
+                "STEP RIGHT UP AND TEST YOUR LUCK TODAY!",
+                "FOCUS YOUR MIND, STEADY YOUR HAND, AND WIN.",
+                "THE CLAW AWAITS YOUR COMMAND, BRAVE PLAYER.",
+                "WILL YOU BE THE LEGENDARY WINNER WE SEEK?",
+                "KEEP YOUR EYES ON THE PRIZE AND DON'T LET GO!"
+            ],
+            currentPhraseIndex: 0,
+            overrideText: "",
+            blinkVisible: true,
+            lastBlinkTime: 0,
+            eventEndTime: 0,
+            fullTextString: "" // To store the joined string
+        };
+
+        // --- Initialization ---
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050510); // Deep arcade blue/black
+            scene.fog = new THREE.Fog(0x050510, 200, 600); // Blend distant machines
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            updateCameraPosition(); // Set initial pos
+
+            // Shimmer Light (Attached to Camera)
+            const cameraLight = new THREE.PointLight(0xffffff, 0.6, 200);
+            cameraLight.position.set(0, 20, 0);
+            camera.add(cameraLight);
+            scene.add(camera);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            scene.add(ambientLight);
+
+            const spotLight = new THREE.SpotLight(0xfffae0, 0.8);
+            spotLight.position.set(0, 200, 100);
+            spotLight.angle = Math.PI / 4;
+            spotLight.penumbra = 0.5;
+            spotLight.castShadow = true;
+            spotLight.shadow.mapSize.width = 2048;
+            spotLight.shadow.mapSize.height = 2048;
+            scene.add(spotLight);
+
+            const internalLight = new THREE.PointLight(0xffffff, 0.8, 200);
+            internalLight.position.set(0, 85, 0);
+            scene.add(internalLight);
+
+            const ceilingPanel = new THREE.Mesh(
+                new THREE.PlaneGeometry(80, 80),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+            );
+            ceilingPanel.rotation.x = Math.PI / 2;
+            ceilingPanel.position.set(0, 89, 0);
+            scene.add(ceilingPanel);
+
+            setupMarquee();
+            buildArcadeRoom(); // New function for environment
+            buildCabinet();
+            buildLEDs();
+            buildGantry();
+            spawnPrizes();
+
+            window.addEventListener('resize', onResize, false);
+            setupInputListeners();
+            setupJoystick();
+            setupMouseOrbit();
+            updateCreditDisplay();
+
+            // Fade In Logic
+            setTimeout(() => {
+                document.getElementById('fade-overlay').style.opacity = 0;
+            }, 100);
+
+            animate();
+            window.focus();
+        }
+
+        function buildArcadeRoom() {
+            // Dark floor
+            const floorGeo = new THREE.PlaneGeometry(1000, 1000);
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x050505,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = CONFIG.floorY - 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Neighboring Arcade Machines (Low Poly)
+            const cabGeo = new THREE.BoxGeometry(70, 160, 70);
+            const positions = [
+                { x: -120, z: 20, color: 0xff00ff, rot: 0.2 }, // Magenta machine left
+                { x: 120, z: 20, color: 0x00ffff, rot: -0.2 }, // Cyan machine right
+                { x: -90, z: -100, color: 0x00ff00, rot: 0.1 }, // Lime back left
+                { x: 90, z: -100, color: 0xffaa00, rot: -0.1 }, // Amber back right
+                { x: 0, z: -150, color: 0xff0000, rot: 0 } // Red far back
+            ];
+
+            positions.forEach(p => {
+                const cab = new THREE.Mesh(cabGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 }));
+                cab.position.set(p.x, CONFIG.floorY + 80, p.z);
+                cab.rotation.y = p.rot;
+                scene.add(cab);
+
+                // Glow Screen
+                const screen = new THREE.Mesh(new THREE.PlaneGeometry(50, 40), new THREE.MeshBasicMaterial({ color: p.color }));
+                screen.position.set(0, 20, 36);
+                cab.add(screen);
+
+                // Glow Marquee
+                const marq = new THREE.Mesh(new THREE.PlaneGeometry(50, 15), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                marq.position.set(0, 60, 36);
+                cab.add(marq);
+
+                // Ambient light casting from machine
+                const light = new THREE.PointLight(p.color, 0.5, 100);
+                light.position.set(0, 40, 50);
+                cab.add(light);
+            });
+        }
+
+        function setupMarquee() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 4096; // 4x 1024 for detail across 4 panels
+            canvas.height = 256;
+            marqueeCtx = canvas.getContext('2d');
+            marqueeTexture = new THREE.CanvasTexture(canvas);
+            marqueeTexture.wrapS = THREE.RepeatWrapping;
+            marqueeTexture.wrapT = THREE.ClampToEdgeWrapping;
+
+            // Build the full unified string once
+            const separator = "          *** "; // Large gap
+            marqueeState.fullTextString = marqueeState.phrases.join(separator) + separator;
+        }
+
+        function updateMarquee() {
+            const ctx = marqueeCtx;
+            const w = 4096;
+            const h = 256;
+            const time = Date.now();
+
+            // Background
+            const grd = ctx.createLinearGradient(0, 0, 0, h);
+            if (state.status === 'STARTUP') {
+                const hue = (time * 0.2) % 360;
+                grd.addColorStop(0, `hsl(${hue}, 100%, 50%)`);
+                grd.addColorStop(1, `hsl(${(hue + 180) % 360}, 100%, 50%)`);
+            } else if (marqueeState.mode === 'WIN') {
+                grd.addColorStop(0, "#f1c40f");
+                grd.addColorStop(0.5, "#fff200");
+                grd.addColorStop(1, "#f1c40f");
+            } else if (marqueeState.mode === 'LOSS') {
+                grd.addColorStop(0, "#c0392b");
+                grd.addColorStop(0.5, "#e74c3c");
+                grd.addColorStop(1, "#c0392b");
+            } else {
+                grd.addColorStop(0, "#ff9f43");
+                grd.addColorStop(0.5, "#ffc048");
+                grd.addColorStop(1, "#ff9f43");
+            }
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.fillStyle = "rgba(0,0,0,0.1)";
+            for (let i = 0; i < h; i += 4) ctx.fillRect(0, i, w, 2);
+
+            // CHANGED: Using "Impact" font for taller look
+            ctx.font = 'bold 180px "Impact", "Arial Narrow", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            if (state.status === 'STARTUP') {
+                drawFancyText(ctx, "SYSTEM INITIALIZING...", w / 2, h / 2);
+            } else if (marqueeState.mode === 'SCROLL') {
+                // Unified Scrolling Logic
+                ctx.textAlign = 'left';
+                marqueeState.offset += 2;
+
+                const text = marqueeState.fullTextString;
+                const textWidth = ctx.measureText(text).width;
+
+                // Wrap logic
+                if (marqueeState.offset > textWidth) {
+                    marqueeState.offset = 0;
+                }
+
+                // Draw text repeated enough times to fill canvas
+                let x = -marqueeState.offset;
+
+                // Draw first copy
+                drawFancyText(ctx, text, x, h / 2);
+
+                // Draw second copy immediately after
+                drawFancyText(ctx, text, x + textWidth, h / 2);
+
+                // If the text is shorter than the canvas (unlikely with this setup but good safety), draw more
+                if (x + textWidth * 2 < w) {
+                    drawFancyText(ctx, text, x + textWidth * 2, h / 2);
+                }
+
+            } else {
+                ctx.textAlign = 'center';
+                if (time > marqueeState.eventEndTime) {
+                    marqueeState.mode = 'SCROLL';
+                }
+                if (time - marqueeState.lastBlinkTime > 500) {
+                    marqueeState.blinkVisible = !marqueeState.blinkVisible;
+                    marqueeState.lastBlinkTime = time;
+                }
+                if (marqueeState.blinkVisible) {
+                    drawFancyText(ctx, marqueeState.overrideText, w / 2, h / 2);
+                }
+            }
+
+            if (marqueeTexture) marqueeTexture.needsUpdate = true;
+        }
+
+        function drawFancyText(ctx, text, x, y) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillText(text, x + 8, y + 8);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(text, x, y);
+        }
+
+        function triggerEvent(type) {
+            const wins = ["JACKPOT! YOU ARE A MASTER!", "LEGENDARY SKILL DETECTED!", "WINNER WINNER, CHICKEN DINNER!", "THE CLAW HAS CHOSEN YOU!"];
+            const loss = ["SO CLOSE, YET SO FAR!", "BETTER LUCK NEXT TIME.", "OH NO! IT SLIPPED AWAY.", "KEEP TRYING, DON'T GIVE UP!"];
+            marqueeState.mode = type;
+            marqueeState.eventEndTime = Date.now() + 5000;
+            if (type === 'WIN') {
+                marqueeState.overrideText = wins[Math.floor(Math.random() * wins.length)];
+            } else {
+                marqueeState.overrideText = loss[Math.floor(Math.random() * loss.length)];
+            }
+        }
+
+        function buildLEDs() {
+            const positions = [
+                { x: -44, z: -44, rot: Math.PI / 4 },
+                { x: 44, z: -44, rot: -Math.PI / 4 },
+                { x: -44, z: 44, rot: -Math.PI / 4 },
+                { x: 44, z: 44, rot: Math.PI / 4 }
+            ];
+            const ledGeo = new THREE.BoxGeometry(2, 120, 1);
+            positions.forEach((pos, index) => {
+                const ledMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xff0000, emissiveIntensity: 2 });
+                const strip = new THREE.Mesh(ledGeo, ledMat);
+                strip.position.set(pos.x, 25, pos.z);
+                strip.rotation.y = pos.rot;
+                scene.add(strip);
+                ledStrips.push(strip);
+                const light = new THREE.PointLight(0xff0000, 0.4, 50);
+                light.position.set(pos.x * 0.9, 25, pos.z * 0.9);
+                scene.add(light);
+                ledPointLights.push(light);
+            });
+        }
+
+        // Helper to map UVs to a sub-section of the texture
+        function mapUVs(geometry, minU, maxU) {
+            const uvAttribute = geometry.attributes.uv;
+            for (let i = 0; i < uvAttribute.count; i++) {
+                const u = uvAttribute.getX(i);
+                // Map 0..1 to minU..maxU
+                const newU = minU + (u * (maxU - minU));
+                uvAttribute.setX(i, newU);
+            }
+            uvAttribute.needsUpdate = true;
+        }
+
+        function buildCabinet() {
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+            const glassMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff, transmission: 0.95, opacity: 0.1, transparent: true, roughness: 0.05, metalness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.0
+            });
+            const metalMat = new THREE.MeshStandardMaterial({ color: 0xff4757, roughness: 0.3, metalness: 0.4 });
+            const chromeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1, metalness: 0.9 });
+            const railMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 });
+
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.cabinetWidth, 4, CONFIG.cabinetDepth), floorMat);
+            floor.position.y = CONFIG.floorY; floor.receiveShadow = true; scene.add(floor);
+
+            const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.cabinetWidth, 4, CONFIG.cabinetDepth), metalMat);
+            ceiling.position.y = 90; scene.add(ceiling);
+
+            const marquee = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.cabinetWidth + 4, 16, CONFIG.cabinetDepth + 4), metalMat);
+            marquee.position.y = 100; scene.add(marquee);
+
+            // --- Marquee Panels with Unified UV Mapping ---
+            const glowMat = new THREE.MeshBasicMaterial({ map: marqueeTexture });
+
+            const frontGeo = new THREE.PlaneGeometry(90, 10);
+            mapUVs(frontGeo, 0.50, 0.75);
+            const frontGlow = new THREE.Mesh(frontGeo, glowMat);
+            frontGlow.position.set(0, 100, 53);
+            scene.add(frontGlow);
+
+            const backGeo = new THREE.PlaneGeometry(90, 10);
+            mapUVs(backGeo, 0.0, 0.25);
+            const backGlow = new THREE.Mesh(backGeo, glowMat);
+            backGlow.position.set(0, 100, -53);
+            backGlow.rotation.y = Math.PI;
+            scene.add(backGlow);
+
+            const leftGeo = new THREE.PlaneGeometry(90, 10);
+            mapUVs(leftGeo, 0.25, 0.50);
+            const leftGlow = new THREE.Mesh(leftGeo, glowMat);
+            leftGlow.position.set(-53, 100, 0);
+            leftGlow.rotation.y = -Math.PI / 2;
+            scene.add(leftGlow);
+
+            const rightGeo = new THREE.PlaneGeometry(90, 10);
+            mapUVs(rightGeo, 0.75, 1.00);
+            const rightGlow = new THREE.Mesh(rightGeo, glowMat);
+            rightGlow.position.set(53, 100, 0);
+            rightGlow.rotation.y = Math.PI / 2;
+            scene.add(rightGlow);
+
+            // Pillars
+            const pillarGeo = new THREE.BoxGeometry(4, 130, 4);
+            const positions = [[-48, 25, -48], [48, 25, -48], [-48, 25, 48], [48, 25, 48]];
+            positions.forEach(pos => {
+                const p = new THREE.Mesh(pillarGeo, metalMat); p.position.set(...pos); scene.add(p);
+                const cap = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 6), chromeMat); cap.position.set(pos[0], 90, pos[2]); scene.add(cap);
+                const base = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 6), chromeMat); base.position.set(pos[0], CONFIG.floorY + 2, pos[2]); scene.add(base);
+            });
+
+            // Glass
+            const backGlass = new THREE.Mesh(new THREE.PlaneGeometry(90, 130), glassMat); backGlass.position.set(0, 25, -48); scene.add(backGlass);
+            const leftGlass = new THREE.Mesh(new THREE.PlaneGeometry(90, 130), glassMat); leftGlass.rotation.y = Math.PI / 2; leftGlass.position.set(-48, 25, 0); scene.add(leftGlass);
+            const rightGlass = new THREE.Mesh(new THREE.PlaneGeometry(90, 130), glassMat); rightGlass.rotation.y = -Math.PI / 2; rightGlass.position.set(48, 25, 0); scene.add(rightGlass);
+            const frontGlass = new THREE.Mesh(new THREE.PlaneGeometry(90, 130), glassMat); frontGlass.position.set(0, 25, 48); scene.add(frontGlass);
+
+            const sideRailGeo = new THREE.CylinderGeometry(0.8, 0.8, CONFIG.cabinetDepth - 6, 12);
+            sideRailGeo.rotateX(Math.PI / 2);
+            const leftSideRail = new THREE.Mesh(sideRailGeo, railMat); leftSideRail.position.set(-49, 73.7, 0); scene.add(leftSideRail);
+            const rightSideRail = new THREE.Mesh(sideRailGeo, railMat); rightSideRail.position.set(49, 73.7, 0); scene.add(rightSideRail);
+
+            // Prize Chute & Retrieval Bin
+            const chuteGroup = new THREE.Group();
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const w1 = new THREE.Mesh(new THREE.BoxGeometry(32, 10, 2), wallMat); w1.position.z = -16;
+            const w2 = new THREE.Mesh(new THREE.BoxGeometry(32, 10, 2), wallMat); w2.position.z = 16;
+            const w3 = new THREE.Mesh(new THREE.BoxGeometry(2, 10, 32), wallMat); w3.position.x = 16;
+            const w4 = new THREE.Mesh(new THREE.BoxGeometry(2, 10, 32), wallMat); w4.position.x = -16;
+            chuteGroup.add(w1, w2, w3, w4);
+            const hole = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+            hole.position.y = -4; chuteGroup.add(hole);
+            chuteGroup.position.set(-34, CONFIG.floorY + 7, 34); scene.add(chuteGroup);
+
+            // Retrieval Box (Below the door)
+            const retrievalBox = new THREE.Mesh(new THREE.BoxGeometry(30, 20, 30), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            retrievalBox.position.set(-34, CONFIG.floorY - 20, 40);
+            scene.add(retrievalBox);
+
+            const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(40, 30, 2), metalMat); doorFrame.position.set(0, CONFIG.floorY - 20, 50); scene.add(doorFrame);
+            const doorFlap = new THREE.Mesh(new THREE.BoxGeometry(34, 24, 2), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 }));
+            doorFlap.position.set(0, CONFIG.floorY - 20, 51); doorFlap.rotation.x = -0.2; scene.add(doorFlap);
+        }
+
+        function buildGantry() {
+            // ... (Same gantry code as previous, no changes needed to visuals)
+            const railMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.8, roughness: 0.2 });
+            const carriageMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.7 });
+            const aluminumMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, metalness: 0.5, roughness: 0.5 });
+            const beltMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            const motorBodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
+
+            gantryBridge = new THREE.Group();
+            const endPlateGeo = new THREE.BoxGeometry(1, 10, 12);
+            const leftPlate = new THREE.Mesh(endPlateGeo, aluminumMat); leftPlate.position.x = -48;
+            const rightPlate = new THREE.Mesh(endPlateGeo, aluminumMat); rightPlate.position.x = 48;
+            const wheelGeo = new THREE.CylinderGeometry(1.5, 1.5, 1, 16); wheelGeo.rotateZ(Math.PI / 2);
+            const lw1 = new THREE.Mesh(wheelGeo, aluminumMat); lw1.position.set(-49, -4, 4);
+            const lw2 = new THREE.Mesh(wheelGeo, aluminumMat); lw2.position.set(-49, -4, -4);
+            const rw1 = new THREE.Mesh(wheelGeo, aluminumMat); rw1.position.set(49, -4, 4);
+            const rw2 = new THREE.Mesh(wheelGeo, aluminumMat); rw2.position.set(49, -4, -4);
+            gantryBridge.add(leftPlate, rightPlate, lw1, lw2, rw1, rw2);
+            const railGeo = new THREE.CylinderGeometry(0.5, 0.5, 96, 12); railGeo.rotateZ(Math.PI / 2);
+            const rail1 = new THREE.Mesh(railGeo, railMat); rail1.position.z = -3;
+            const rail2 = new THREE.Mesh(railGeo, railMat); rail2.position.z = 3;
+            const mountGeo = new THREE.BoxGeometry(2, 3, 2);
+            const m1 = new THREE.Mesh(mountGeo, aluminumMat); m1.position.set(-47, 0, -3);
+            const m2 = new THREE.Mesh(mountGeo, aluminumMat); m2.position.set(47, 0, -3);
+            const m3 = new THREE.Mesh(mountGeo, aluminumMat); m3.position.set(-47, 0, 3);
+            const m4 = new THREE.Mesh(mountGeo, aluminumMat); m4.position.set(47, 0, 3);
+            gantryBridge.add(rail1, rail2, m1, m2, m3, m4);
+            const nemaGeo = new THREE.BoxGeometry(4, 4, 4);
+            const motorBody = new THREE.Mesh(nemaGeo, motorBodyMat); motorBody.position.set(-44, 2, -5); gantryBridge.add(motorBody);
+            const beltLoopGeo = new THREE.BoxGeometry(88, 0.2, 0.5);
+            const beltTop = new THREE.Mesh(beltLoopGeo, beltMat); beltTop.position.set(0, 2.5, -4);
+            const beltBot = new THREE.Mesh(beltLoopGeo, beltMat); beltBot.position.set(0, 1.5, -4);
+            gantryBridge.add(beltTop, beltBot);
+            const pulleyGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.6, 16);
+            const p1 = new THREE.Mesh(pulleyGeo, aluminumMat); p1.position.set(-44, 2, -4);
+            const p2 = new THREE.Mesh(pulleyGeo, aluminumMat); p2.position.set(44, 2, -4);
+            gantryBridge.add(p1, p2);
+            gantryBridge.position.y = 80; scene.add(gantryBridge);
+
+            gantryCarriage = new THREE.Group();
+            const carriageBody = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 9), carriageMat); gantryCarriage.add(carriageBody);
+            const bearingGeo = new THREE.CylinderGeometry(1, 1, 3, 12); bearingGeo.rotateZ(Math.PI / 2);
+            const b1 = new THREE.Mesh(bearingGeo, aluminumMat); b1.position.set(-2, -1, 3);
+            const b2 = new THREE.Mesh(bearingGeo, aluminumMat); b2.position.set(2, -1, 3);
+            const b3 = new THREE.Mesh(bearingGeo, aluminumMat); b3.position.set(-2, -1, -3);
+            const b4 = new THREE.Mesh(bearingGeo, aluminumMat); b4.position.set(2, -1, -3);
+            gantryCarriage.add(b1, b2, b3, b4);
+            const clampGeo = new THREE.BoxGeometry(2, 1, 1);
+            const clamp = new THREE.Mesh(clampGeo, aluminumMat); clamp.position.set(0, 1, -4); gantryCarriage.add(clamp);
+            const spoolGeo = new THREE.CylinderGeometry(1.5, 1.5, 4, 16); spoolGeo.rotateX(Math.PI / 2);
+            const spool = new THREE.Mesh(spoolGeo, new THREE.MeshStandardMaterial({ color: 0xffffff })); spool.position.set(0, 2, 0); gantryCarriage.add(spool);
+            const grommet = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.1, 8, 16), aluminumMat); grommet.rotation.x = Math.PI / 2; grommet.position.y = -1.1; gantryCarriage.add(grommet);
+            const zMotorBody = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), motorBodyMat); zMotorBody.position.set(3, 2.5, 2); gantryCarriage.add(zMotorBody);
+            gantryBridge.add(gantryCarriage);
+
+            clawGroup = new THREE.Group();
+
+            if (loadedClawModel) {
+                const clawMesh = loadedClawModel.clone();
+                // Adjust position/rotation to fit the rope connection point
+                clawMesh.position.y = -5;
+                clawMesh.rotation.y = Math.PI / 2; // Adjust if needed
+
+                // Enable Shadows
+                clawMesh.traverse((c) => {
+                    if (c.isMesh) {
+                        c.castShadow = true;
+                        c.receiveShadow = true;
                     }
-                    audio.playTone(400, 'sine', 0.1);
+                });
+
+                clawGroup.add(clawMesh);
+            } else {
+                // Fallback (Keep simplified procedural if model fails)
+                const housing = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 6, 16), new THREE.MeshStandardMaterial({ color: 0xf39c12 }));
+                clawGroup.add(housing);
+            }
+            scene.add(clawGroup);
+
+            const ropeContainer = new THREE.Group();
+            const ropeGeo = new THREE.CylinderGeometry(0.15, 0.15, 1);
+            ropeGeo.rotateX(-Math.PI / 2); ropeGeo.translate(0, 0, 0.5);
+            const ropeBody = new THREE.Mesh(ropeGeo, new THREE.MeshBasicMaterial({ color: 0x111111 }));
+            ropeContainer.add(ropeBody); ropeMesh = ropeContainer; scene.add(ropeMesh);
+
+            class HelixCurve extends THREE.Curve {
+                getPoint(t) {
+                    const loops = 12; const angle = t * Math.PI * 2 * loops;
+                    const radius = 0.8; const x = radius * Math.cos(angle); const z = radius * Math.sin(angle); const y = -t * 20;
+                    return new THREE.Vector3(x, y, z);
+                }
+            }
+            const path = new HelixCurve(); const tubeGeo = new THREE.TubeGeometry(path, 128, 0.15, 6, false);
+            const coilContainer = new THREE.Group(); tubeGeo.rotateX(-Math.PI / 2); tubeGeo.translate(0, 0, 10);
+            const coilBody = new THREE.Mesh(tubeGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
+            coilContainer.add(coilBody); coilMesh = coilContainer; scene.add(coilMesh);
+
+            const chainPath = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)]);
+            const chainGeo = new THREE.TubeGeometry(chainPath, 16, 0.8, 4, false);
+            dragChainMesh = new THREE.Mesh(chainGeo, new THREE.MeshStandardMaterial({ color: 0x222222 })); scene.add(dragChainMesh);
+        }
+
+        function spawnPrizes() {
+            const geometries = [
+                new THREE.SphereGeometry(4, 16, 16),
+                new THREE.BoxGeometry(6, 6, 6),
+                new THREE.IcosahedronGeometry(4, 0),
+                new THREE.TorusKnotGeometry(2.5, 0.8, 64, 8)
+            ];
+            const colors = [0xe74c3c, 0x3498db, 0xf1c40f, 0x9b59b6, 0x2ecc71, 0xff7675, 0x00cec9];
+            for (let i = 0; i < 35; i++) {
+                const geo = geometries[Math.floor(Math.random() * geometries.length)];
+                const mat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)], roughness: 0.4, metalness: 0.1 });
+                const prize = new THREE.Mesh(geo, mat);
+                prize.position.x = (Math.random() - 0.5) * 80;
+                prize.position.z = (Math.random() - 0.5) * 80;
+                prize.position.y = CONFIG.floorY + 4 + (Math.random() * 8);
+                prize.castShadow = true; prize.receiveShadow = true;
+                prize.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                scene.add(prize); prizes.push(prize);
+            }
+        }
+
+        // --- Confetti System ---
+        function createConfetti() {
+            const particleCount = 100;
+            const geo = new THREE.BufferGeometry();
+            const positions = [];
+            const velocities = [];
+            const colors = [];
+
+            for (let i = 0; i < particleCount; i++) {
+                // Eject from machine top center
+                positions.push(0, 110, 0);
+                // Random velocity outward
+                velocities.push(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() * 1.5) + 0.5,
+                    (Math.random() - 0.5) * 2
+                );
+                const color = new THREE.Color().setHSL(Math.random(), 1, 0.5);
+                colors.push(color.r, color.g, color.b);
+            }
+
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const mat = new THREE.PointsMaterial({ size: 1.5, vertexColors: true });
+            const particleSystem = new THREE.Points(geo, mat);
+            particleSystem.userData = { velocities: velocities, age: 0 };
+
+            scene.add(particleSystem);
+            particles.push(particleSystem);
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                const positions = p.geometry.attributes.position.array;
+                const vels = p.userData.velocities;
+
+                p.userData.age++;
+
+                for (let j = 0; j < positions.length; j += 3) {
+                    positions[j] += vels[j];     // x
+                    positions[j + 1] += vels[j + 1]; // y
+                    positions[j + 2] += vels[j + 2]; // z
+
+                    vels[j + 1] -= 0.02; // Gravity
+                }
+                p.geometry.attributes.position.needsUpdate = true;
+
+                if (p.userData.age > 200) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
                 }
             }
         }
 
-        function releaseGrabbedToFloor() {
-            if (!grabbed) return;
-            const dropY = FLOOR_TOP_Y + (grabbed.userData.bodyRadius ?? 0.4);
-            grabbed.position.set(clawGroup.position.x, dropY, clawGroup.position.z);
-            const body = physicsBodies.get(grabbed);
-            if (body) {
-                body.type = CANNON.Body.DYNAMIC;
-                body.mass = grabbed.userData.mass ?? 1;
-                body.updateMassProperties();
-                body.collisionResponse = true;
-                const worldPos = toWorld(grabbed.position);
-                body.position.set(worldPos.x, worldPos.y, worldPos.z);
-                body.velocity.set(0, 0, 0);
-                body.angularVelocity.set(0, 0, 0);
-            }
-            grabbed = null;
-            grabbedBody = null;
-            currentSlipRisk = 0;
-            audio.playTone(180, 'sawtooth', 0.2);
-            lights.setMode('LOSE');
+        // --- Logic ---
+        function updateCreditDisplay() {
+            const display = document.getElementById('creditDisplay');
+            display.innerText = state.credits < 10 ? "0" + state.credits : state.credits;
+            display.style.color = state.credits > 0 ? '#2ecc71' : '#e74c3c';
         }
 
-        function maybeSlip(dt) {
-            if (!grabbed || testMode) {
-                currentSlipRisk = 0;
-                return false;
+        function insertCoin() { state.credits++; updateCreditDisplay(); }
+
+        function tryDrop() {
+            // Check for credits or free play
+            if (state.credits > 0 && state.status === 'IDLE') {
+                state.credits--;
+                updateCreditDisplay();
+                state.status = 'DROPPING';
+                state.dropTargetY = CONFIG.floorY + 5;
+            } else if (state.credits <= 0) {
+                // Auto replenish for free play feel if button removed
+                state.credits = 1;
+                updateCreditDisplay();
+                state.status = 'DROPPING';
+                state.dropTargetY = CONFIG.floorY + 5;
             }
-            const gripQuality = grabbed.userData.gripQuality ?? 0.5;
-            const weight = grabbed.userData.weight ?? 1;
-            const slipPerSecond = SLIP_BASE + (1 - gripQuality) * SLIP_GRIP_PENALTY + Math.max(0, weight - 1) * SLIP_WEIGHT_PENALTY;
-            currentSlipRisk = slipPerSecond;
-            const slipChance = 1 - Math.pow(1 - slipPerSecond, dt);
-            if (Math.random() < slipChance) {
-                releaseGrabbedToFloor();
-                return true;
-            }
-            return false;
         }
 
-        function checkWin() {
-            if (!grabbed) return;
-            // Dropped in hole?
-            lights.setMode('WIN');
-            audio.playWin();
-            const wasBall = balls.includes(grabbed);
-            if (wasBall) { freeTurns++; turns++; }
-            else { prizeCount++; tickets += 10; }
-            if (grabbed.parent) {
-                grabbed.parent.remove(grabbed);
-            } else {
-                scene.remove(grabbed);
-            }
-            if (wasBall) {
-                const idx = balls.indexOf(grabbed);
-                if (idx !== -1) balls.splice(idx, 1);
-            } else {
-                const idx = prizes.indexOf(grabbed);
-                if (idx !== -1) prizes.splice(idx, 1);
-            }
-            removePhysicsForMesh(grabbed);
-            grabbed = null;
-            grabbedBody = null;
-            currentSlipRisk = 0;
-            updateUI();
-            winFlash = 1.4;
-            if (winBanner) {
-                winBanner.classList.remove('show');
-                void winBanner.offsetWidth;
-                winBanner.classList.add('show');
-            }
-            spawnConfetti(new THREE.Vector3(clawGroup.position.x, clawGroup.position.y + 0.6, clawGroup.position.z));
-        }
+        // --- Camera Animation State Machine ---
+        let camTargetPos = new THREE.Vector3(0, 80, 280);
+        let camLookAt = new THREE.Vector3(0, 20, 0);
 
-        // Timer
-        setInterval(() => {
-            // Disabled auto-increment
-        }, 60000);
+        function updateCameraLogic() {
+            if (state.cameraMode === 'TRANSITION_TO_PRIZE') {
+                // Lerp to Prize view (Retreival Bin: x=-34, y=-60, z=50 approx)
+                const targetP = new THREE.Vector3(0, -20, 150); // Zoomed in low
+                const targetL = new THREE.Vector3(-34, CONFIG.floorY - 10, 40); // Look at retrieval box
 
-        // Animation Loop
-        const clock = new THREE.Clock();
+                camera.position.lerp(targetP, 0.05);
+                camLookAt.lerp(targetL, 0.05);
+                camera.lookAt(camLookAt);
 
-        function update(dt) {
-            lights.update(dt);
-            dust.rotation.y += dt * 0.02;
-            if (!grabbed) currentSlipRisk = 0;
-
-            // Aim spotlight at the claw hang point
-            if (spotLight && clawGroup) {
-                const clawWorld = new THREE.Vector3();
-                clawGroup.getWorldPosition(clawWorld);
-                spotLight.target.position.copy(clawWorld);
-                spotLight.target.updateMatrixWorld();
-            }
-
-            if (winFlash > 0) {
-                winFlash = Math.max(0, winFlash - dt);
-                const pulse = 0.5 + Math.sin((1 - winFlash) * 30) * 0.5;
-                ambientLight.intensity = baseAmbientIntensity + winFlash * 2.2 + pulse * 0.6;
-                dirLight.intensity = baseDirIntensity + winFlash * 2.0 + pulse * 0.5;
-                hemiLight.intensity = baseHemiIntensity + winFlash * 1.6 + pulse * 0.4;
-            } else {
-                ambientLight.intensity = baseAmbientIntensity;
-                dirLight.intensity = baseDirIntensity;
-                hemiLight.intensity = baseHemiIntensity;
-            }
-
-            if (confettiLife > 0) {
-                confettiLife -= dt;
-                for (let i = 0; i < confettiCount; i++) {
-                    const idx = i * 3;
-                    confettiVel[idx + 1] -= 3.2 * dt;
-                    confettiPositions[idx] += confettiVel[idx] * dt;
-                    confettiPositions[idx + 1] += confettiVel[idx + 1] * dt;
-                    confettiPositions[idx + 2] += confettiVel[idx + 2] * dt;
+                if (camera.position.distanceTo(targetP) < 1) {
+                    state.cameraMode = 'PRIZE_VIEW';
+                    document.getElementById('collect-msg').style.display = 'block';
+                    document.getElementById('ui-layer').style.opacity = '0';
                 }
-                confettiGeo.attributes.position.needsUpdate = true;
-                if (confettiLife <= 0) confetti.visible = false;
+            } else if (state.cameraMode === 'TRANSITION_TO_GAME') {
+                updateCameraPosition(); // Normal orbit logic calculates pos
+                // But we need to tween LookAt back to center
+                const targetL = new THREE.Vector3(0, 20, 0);
+                camLookAt.lerp(targetL, 0.05);
+                camera.lookAt(camLookAt);
+
+                // Also manually lerp position if far
+                const currentOrbitPos = new THREE.Vector3();
+                const radius = 280;
+                currentOrbitPos.x = radius * Math.sin(cameraAngle);
+                currentOrbitPos.z = radius * Math.cos(cameraAngle);
+                currentOrbitPos.y = cameraHeight;
+
+                camera.position.lerp(currentOrbitPos, 0.05);
+
+                if (camera.position.distanceTo(currentOrbitPos) < 2) {
+                    state.cameraMode = 'GAME';
+                    document.getElementById('ui-layer').style.opacity = '1';
+                    state.status = 'RESETTING'; // Now reset machine
+                }
+            } else if (state.cameraMode === 'GAME') {
+                // Handled by mouse orbit
             }
+        }
 
-            // Finger Animation
-            fingers.forEach(f => {
-                // Interpolate angle
-                if (f.userData.currentAngle === undefined) f.userData.currentAngle = 0;
-                f.userData.currentAngle += (targetFingerAngle - f.userData.currentAngle) * 5 * dt;
+        // Handle clicks for return
+        window.addEventListener('mousedown', () => {
+            if (state.cameraMode === 'PRIZE_VIEW') {
+                state.cameraMode = 'TRANSITION_TO_GAME';
+                document.getElementById('collect-msg').style.display = 'none';
+                // Remove prize
+                if (state.wonPrize) {
+                    scene.remove(state.wonPrize);
+                    state.wonPrize = null;
+                }
+            }
+        });
 
-                // Rotate around calculated axis
-                if (f.userData.axis) {
-                    f.quaternion.setFromAxisAngle(f.userData.axis, f.userData.currentAngle);
+        function updatePhysics() {
+            updateParticles();
+            updateCameraLogic();
+
+            // -- MOVEMENT CONTROLLER --
+            if (state.status === 'STARTUP') {
+                const targetX = 0; const targetZ = 0;
+                let dx = targetX - state.gantryX; let dz = targetZ - state.gantryZ;
+                let dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > 0.5) {
+                    state.gantryX += (dx / dist) * 0.4; // Slower startup
+                    state.gantryZ += (dz / dist) * 0.4;
                 } else {
-                    f.rotation.x = f.userData.currentAngle; // Fallback
+                    state.gantryX = 0; state.gantryZ = 0; state.status = 'IDLE';
                 }
-            });
-
-            // State Machine
-            switch (clawState) {
-                case CLAW_STATES.IDLE:
-                    // Joystick Movement
-                    clawTarget.x += clawVelocity.x;
-                    clawTarget.z += clawVelocity.z;
-
-                    // Constraints
-                    clawTarget.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawTarget.x));
-                    clawTarget.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawTarget.z));
-                    break;
-
-                case CLAW_STATES.DROPPING:
-                    clawGroup.position.y -= 1.5 * dt; // Slower drop
-                    if (clawGroup.position.y <= CLAW_BOTTOM_Y) {
-                        clawGroup.position.y = CLAW_BOTTOM_Y;
-                        audio.stopMotor();
-                        clawState = CLAW_STATES.WAIT_BOTTOM;
-                        stateTimer = 0;
-                    }
-                    break;
-
-                case CLAW_STATES.WAIT_BOTTOM:
-                    stateTimer += dt;
-                    if (stateTimer > 0.5) {
-                        clawState = CLAW_STATES.CLOSING;
-                    }
-                    break;
-
-                case CLAW_STATES.CLOSING:
-                    if (!clawReady || fingers.length === 0) break;
-                    setFingers(false); // Close
-                    // Wait for fingers to visually close
-                    // Check against target angle using userData
-                    if (Math.abs(fingers[0].userData.currentAngle - targetFingerAngle) < 0.1) {
-                        tryGrab();
-                        clawState = CLAW_STATES.WAIT_GRAB;
-                        stateTimer = 0;
-                    }
-                    break;
-
-                case CLAW_STATES.WAIT_GRAB:
-                    stateTimer += dt;
-                    if (stateTimer > 1.0) {
-                        clawState = CLAW_STATES.RISING;
-                        audio.startMotor(250); // Higher pitch rise
-                    }
-                    break;
-
-                case CLAW_STATES.RISING:
-                    clawGroup.position.y += 1.5 * dt;
-                    maybeSlip(dt);
-                    if (clawGroup.position.y >= CLAW_TOP_Y) {
-                        clawGroup.position.y = CLAW_TOP_Y;
-                        audio.stopMotor();
-                        clawState = CLAW_STATES.MOVING_CORNER;
-                        audio.startMotor(200);
-                    }
-                    break;
-
-                case CLAW_STATES.MOVING_CORNER:
-                    // Move to (-2, 2) approx (Center of hole)
-                    const targetX = -2;
-                    const targetZ = 2; // Front left is +Z in this camera setup (camera at +Z positive)
-
-                    const dx = targetX - clawTarget.x;
-                    const dz = targetZ - clawTarget.z;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
-
-                    if (dist > 0.001) {
-                        const move = Math.min(dist, 4 * dt);
-                        clawTarget.x += (dx / dist) * move;
-                        clawTarget.z += (dz / dist) * move;
-                        maybeSlip(dt);
-                    }
-
-                    const actualDist = Math.hypot(clawPos.x - targetX, clawPos.z - targetZ);
-                    if (actualDist < 0.12) {
-                        clawTarget.x = targetX;
-                        clawTarget.z = targetZ;
-                        audio.stopMotor(); // SCRATCH STOP
-                        clawState = CLAW_STATES.WIGGLE_STOP;
-                        stateTimer = 0;
-                    }
-                    break;
-
-                case CLAW_STATES.WIGGLE_STOP:
-                    stateTimer += dt;
-                    if (stateTimer > 1.0) {
-                        clawState = CLAW_STATES.OPENING;
-                    }
-                    break;
-
-                case CLAW_STATES.OPENING:
-                    setFingers(true);
-                    if (grabbed) {
-                        // Drop logic
-                        checkWin();
-                    } else {
-                        // Empty drop
-                        if (clawState !== CLAW_STATES.WAIT_DROP) {
-                            audio.playTone(150, 'sawtooth', 0.3); // Fail sound
-                            lights.setMode('LOSE');
-                        }
-                    }
-                    clawState = CLAW_STATES.WAIT_DROP;
-                    stateTimer = 0;
-                    break;
-
-                case CLAW_STATES.WAIT_DROP:
-                    stateTimer += dt;
-                    if (stateTimer > 1.0) {
-                        clawState = CLAW_STATES.RETURNING;
-                        audio.startMotor(200);
-                    }
-                    break;
-
-                case CLAW_STATES.RETURNING:
-                    // Return to 0,0
-                    const rdx = 0 - clawTarget.x;
-                    const rdz = 0 - clawTarget.z;
-                    const rdist = Math.sqrt(rdx * rdx + rdz * rdz);
-
-                    if (rdist > 0.001) {
-                        const move = Math.min(rdist, 4 * dt);
-                        clawTarget.x += (rdx / rdist) * move;
-                        clawTarget.z += (rdz / rdist) * move;
-                    }
-
-                    const actualReturnDist = Math.hypot(clawPos.x, clawPos.z);
-                    if (actualReturnDist < 0.12) {
-                        clawTarget.x = 0;
-                        clawTarget.z = 0;
-                        audio.stopMotor();
-                        clawState = CLAW_STATES.IDLE;
-                        lights.setMode('IDLE');
-                    }
-                    break;
             }
-
-            // Safety clamp to avoid overshoot in non-IDLE states
-            clawTarget.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawTarget.x));
-            clawTarget.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawTarget.z));
-
-            const forceX = (clawTarget.x - clawPos.x) * WIGGLE_STIFFNESS;
-            const forceZ = (clawTarget.z - clawPos.z) * WIGGLE_STIFFNESS;
-            clawWiggleVel.x = (clawWiggleVel.x + forceX) * WIGGLE_DAMPING;
-            clawWiggleVel.z = (clawWiggleVel.z + forceZ) * WIGGLE_DAMPING;
-            clawPos.x += clawWiggleVel.x;
-            clawPos.z += clawWiggleVel.z;
-            clawPos.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, clawPos.x));
-            clawPos.z = Math.max(-LIMIT_Z, Math.min(LIMIT_Z, clawPos.z));
-
-            clawGroup.position.x = clawPos.x;
-            clawGroup.position.z = clawPos.z;
-            clawGroup.rotation.z = -(clawTarget.x - clawPos.x) * 0.12;
-            clawGroup.rotation.x = (clawTarget.z - clawPos.z) * 0.12;
-
-            if (gantryCarriage) {
-                gantryCarriage.position.set(clawTarget.x, GANTRY_Y, clawTarget.z);
+            else if (state.status === 'RESETTING') {
+                const targetX = 0; const targetZ = 0;
+                let dx = targetX - state.gantryX; let dz = targetZ - state.gantryZ;
+                let dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > 0.5) {
+                    state.gantryX += (dx / dist) * 0.8;
+                    state.gantryZ += (dz / dist) * 0.8;
+                } else {
+                    state.gantryX = 0; state.gantryZ = 0; state.status = 'IDLE';
+                }
             }
-
-            if (ropeMesh && coilMesh) {
-                const hookOffset = o(7);
-                const anchorVec = new THREE.Vector3(clawTarget.x, GANTRY_Y, clawTarget.z);
-                const clawVec = new THREE.Vector3(clawGroup.position.x, clawGroup.position.y + hookOffset, clawGroup.position.z);
-                ropeMesh.position.copy(anchorVec);
-                ropeMesh.lookAt(clawVec);
-                ropeMesh.scale.z = anchorVec.distanceTo(clawVec);
-
-                const coilAnchor = anchorVec.clone().add(new THREE.Vector3(o(3), 0, o(3)));
-                const coilClaw = clawVec.clone().add(new THREE.Vector3(o(3), 0, o(3)));
-                coilMesh.position.copy(coilAnchor);
-                coilMesh.lookAt(coilClaw);
-                coilMesh.scale.set(1, 1, Math.max(o(0.1), coilAnchor.distanceTo(coilClaw) / o(20)));
-            }
-
-            if (dragChainMesh) {
-                const start = new THREE.Vector3(o(-48), oy(82), clawTarget.z);
-                const end = new THREE.Vector3(clawTarget.x, oy(82), clawTarget.z);
-                const mid = start.clone().lerp(end, 0.5);
-                mid.y += o(10);
-                dragChainMesh.geometry.dispose();
-                const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-                dragChainMesh.geometry = new THREE.TubeGeometry(curve, 10, o(0.8), 4, false);
-            }
-
-            // Grabbed Object Sync
-            if (grabbed) {
-                const offset = grabbed.userData.grabOffset ?? 1.0;
-                grabbed.position.set(clawGroup.position.x, clawGroup.position.y - offset, clawGroup.position.z);
-                if (grabbedBody) {
-                    const worldPos = toWorld(grabbed.position);
-                    grabbedBody.position.set(worldPos.x, worldPos.y, worldPos.z);
+            else if (state.status === 'IDLE' && state.cameraMode === 'GAME') {
+                // Check credits handled in tryDrop, movement allowed if credits > 0 or we treat as free play
+                if (state.credits > 0) {
+                    const speed = CONFIG.clawSpeed;
+                    let dx = playerInput.analogX; let dz = playerInput.analogY;
+                    if (playerInput.up) dz -= 1; if (playerInput.down) dz += 1;
+                    if (playerInput.left) dx -= 1; if (playerInput.right) dx += 1;
+                    dx = Math.max(-1, Math.min(1, dx)); dz = Math.max(-1, Math.min(1, dz));
+                    state.gantryX += dx * speed; state.gantryZ += dz * speed;
+                    state.gantryX = Math.max(-42, Math.min(42, state.gantryX));
+                    state.gantryZ = Math.max(-40, Math.min(40, state.gantryZ));
                 }
             }
 
-            world.step(1 / 60, dt, 3);
-            physicsMeshes.forEach((mesh) => {
-                if (mesh === grabbed) return;
-                const body = physicsBodies.get(mesh);
-                if (!body) return;
-                mesh.position.set(body.position.x / WORLD_SCALE, body.position.y / WORLD_SCALE, body.position.z / WORLD_SCALE);
-                mesh.quaternion.set(body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w);
-            });
+            gantryBridge.position.z = state.gantryZ; gantryCarriage.position.x = state.gantryX;
 
-            prizes.forEach((p) => {
-                if (!p.userData.baseScale) return;
-                const base = p.userData.baseScale;
-                const squish = new THREE.Vector3(base.x * 1.18, base.y * 0.68, base.z * 1.18);
-                const target = p === grabbed ? squish : base;
-                p.scale.lerp(target, 9 * dt);
-            });
+            const targetX = state.gantryX; const targetZ = state.gantryZ;
+            const forceX = (targetX - state.clawPos.x) * CONFIG.wiggleStiffness;
+            const forceZ = (targetZ - state.clawPos.z) * CONFIG.wiggleStiffness;
+            state.clawVel.x += forceX; state.clawVel.z += forceZ;
+            state.clawVel.x *= CONFIG.wiggleDamping; state.clawVel.z *= CONFIG.wiggleDamping;
+            state.clawPos.x += state.clawVel.x; state.clawPos.z += state.clawVel.z;
 
-            controls.update();
+            if (state.status === 'DROPPING') {
+                state.clawY -= CONFIG.dropSpeed;
+                if (state.clawY <= state.dropTargetY) { state.status = 'GRABBING'; setTimeout(closeClaw, 1000); }
+            } else if (state.status === 'LIFTING') {
+                state.clawY += CONFIG.clawSpeed;
+                if (state.clawY >= CONFIG.clawRestY) { state.status = 'RETURNING'; }
+            } else if (state.status === 'RETURNING') {
+                const homeX = -34; const homeZ = 34; const speed = 0.5;
+                let dx = homeX - state.gantryX; let dz = homeZ - state.gantryZ;
+                if (Math.abs(dx) > 1) state.gantryX += Math.sign(dx) * speed;
+                if (Math.abs(dz) > 1) state.gantryZ += Math.sign(dz) * speed;
+                if (Math.abs(dx) < 1.5 && Math.abs(dz) < 1.5) { state.status = 'RELEASING'; setTimeout(openClaw, 1000); }
+            }
+
+            clawGroup.position.set(state.clawPos.x, state.clawY, state.clawPos.z);
+            clawGroup.rotation.z = -(state.gantryX - state.clawPos.x) * 0.08;
+            clawGroup.rotation.x = (state.gantryZ - state.clawPos.z) * 0.08;
+
+            const topY = 80; const hookOffset = 7; const clawTopY = state.clawY + hookOffset;
+            const anchorVec = new THREE.Vector3(state.gantryX, topY, state.gantryZ);
+            const clawVec = new THREE.Vector3(state.clawPos.x, clawTopY, state.clawPos.z);
+            ropeMesh.position.copy(anchorVec); ropeMesh.lookAt(clawVec); ropeMesh.scale.z = anchorVec.distanceTo(clawVec);
+            const coilAnchor = anchorVec.clone().add(new THREE.Vector3(3, 0, 3));
+            const coilClaw = clawVec.clone().add(new THREE.Vector3(3, 0, 3));
+            coilMesh.position.copy(coilAnchor); coilMesh.lookAt(coilClaw);
+            coilMesh.scale.set(1, 1, Math.max(0.1, coilAnchor.distanceTo(coilClaw) / 20));
+
+            if (state.heldPrize) {
+                state.heldPrize.position.set(state.clawPos.x, state.clawY - 8, state.clawPos.z);
+                state.heldPrize.rotation.z = clawGroup.rotation.z;
+                state.heldPrize.rotation.x = clawGroup.rotation.x + (Date.now() * 0.001);
+            } else if (state.wonPrize && state.status === 'WIN_SEQUENCE') {
+                // Animate drop into bin
+                if (state.wonPrize.position.y > CONFIG.floorY - 15) {
+                    state.wonPrize.position.y -= 1.0; // Fall
+                }
+            }
+
+            const start = new THREE.Vector3(-48, 82, state.gantryZ);
+            const end = new THREE.Vector3(state.gantryX, 82, state.gantryZ);
+            const mid = start.clone().lerp(end, 0.5); mid.y += 10;
+            dragChainMesh.geometry.dispose();
+            const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+            dragChainMesh.geometry = new THREE.TubeGeometry(curve, 10, 0.8, 4, false);
         }
 
-        function render() {
-            renderer.render(scene, camera);
+        function closeClaw() {
+            state.clawOpen = false;
+            let closest = null; let minDist = 12;
+            prizes.forEach(p => {
+                const dx = p.position.x - state.clawPos.x; const dz = p.position.z - state.clawPos.z;
+                if (Math.sqrt(dx * dx + dz * dz) < minDist) closest = p;
+            });
+            if (closest) {
+                if (Math.random() < CONFIG.winRatio) {
+                    state.heldPrize = closest;
+                } else {
+                    closest.position.x += (Math.random() - 0.5) * 5;
+                    closest.position.z += (Math.random() - 0.5) * 5;
+                    triggerEvent('LOSS');
+                }
+            } else {
+                triggerEvent('LOSS');
+            }
+            setTimeout(() => { state.status = 'LIFTING'; }, 1000);
+        }
+
+        function openClaw() {
+            state.clawOpen = true;
+            if (state.heldPrize) {
+                triggerEvent('WIN');
+                state.wonPrize = state.heldPrize;
+                state.heldPrize = null;
+                state.status = 'WIN_SEQUENCE';
+
+                // 2 Second Delay before camera move
+                setTimeout(() => {
+                    state.cameraMode = 'TRANSITION_TO_PRIZE';
+                    createConfetti(); // EXPLOSION
+                }, 2000);
+            } else {
+                setTimeout(() => { state.status = 'RESETTING'; }, 1000);
+            }
+        }
+
+        function updateLEDs() {
+            const time = Date.now() * 0.0002; // Slower LEDs
+            ledStrips.forEach((strip, i) => {
+                let hue;
+                if (state.status === 'STARTUP') { hue = (time * 5 + (i * 0.5)) % 1; }
+                else { hue = (time + (i * 0.2)) % 1; }
+                strip.material.emissive.setHSL(hue, 1, 0.5);
+                if (ledPointLights[i]) ledPointLights[i].color.setHSL(hue, 1, 0.5);
+            });
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            const dt = clock.getDelta();
-            update(dt);
-            render();
+            updatePhysics();
+            updateLEDs();
+            updateMarquee();
+            const targetAngle = state.clawOpen ? 0.3 : -0.2;
+            fingers.forEach(f => {
+                if (f.children[1]) f.children[1].rotation.z += (targetAngle - f.children[1].rotation.z) * 0.1;
+            });
+            renderer.render(scene, camera);
         }
 
-        function resizeRenderer() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
+        function setupInputListeners() {
+            // Only Drop Button needed
+            document.getElementById('dropBtn').addEventListener('click', tryDrop);
+            document.getElementById('dropBtn').addEventListener('touchstart', (e) => { e.preventDefault(); tryDrop(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowUp') playerInput.up = true; if (e.key === 'ArrowDown') playerInput.down = true;
+                if (e.key === 'ArrowLeft') playerInput.left = true; if (e.key === 'ArrowRight') playerInput.right = true;
+                if (e.code === 'Space') tryDrop();
+            });
+            document.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowUp') playerInput.up = false; if (e.key === 'ArrowDown') playerInput.down = false;
+                if (e.key === 'ArrowLeft') playerInput.left = false; if (e.key === 'ArrowRight') playerInput.right = false;
+            });
+        }
+
+        function setupJoystick() {
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            const stick = document.getElementById('joystick-stick');
+            let isDraggingJoystick = false; let startX, startY; const maxRadius = 40;
+
+            const handleStart = (clientX, clientY) => {
+                isDraggingJoystick = true; const rect = zone.getBoundingClientRect();
+                startX = rect.left + rect.width / 2; startY = rect.top + rect.height / 2;
+            };
+            const handleMove = (clientX, clientY) => {
+                if (!isDraggingJoystick) return;
+                let dx = clientX - startX; let dy = clientY - startY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                let visualDx = dx;
+                let visualDy = dy;
+
+                if (distance > maxRadius) {
+                    const ratio = maxRadius / distance;
+                    dx *= ratio; dy *= ratio;
+                    visualDx = dx; visualDy = dy;
+                }
+
+                // Update Knob
+                knob.style.transform = `translate(calc(-50% + ${visualDx}px), calc(-50% + ${visualDy}px))`;
+
+                // Update Stick
+                // Angle calculation in Radians
+                const angle = Math.atan2(visualDy, visualDx);
+                const dist = Math.sqrt(visualDx * visualDx + visualDy * visualDy);
+
+                stick.style.width = dist + 'px';
+                stick.style.transform = `translate(0, -50%) rotate(${angle}rad)`;
+
+                // Update Input State
+                playerInput.analogX = dx / maxRadius; playerInput.analogY = dy / maxRadius;
+            };
+            const handleEnd = () => {
+                isDraggingJoystick = false;
+                knob.style.transform = `translate(-50%, -50%)`;
+                stick.style.width = '0px';
+                playerInput.analogX = 0; playerInput.analogY = 0;
+            };
+
+            zone.addEventListener('mousedown', e => { e.stopPropagation(); handleStart(e.clientX, e.clientY); });
+            window.addEventListener('mousemove', e => { handleMove(e.clientX, e.clientY); });
+            window.addEventListener('mouseup', handleEnd);
+            zone.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); handleStart(e.touches[0].clientX, e.touches[0].clientY); });
+            zone.addEventListener('touchmove', e => { e.stopPropagation(); e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); });
+            zone.addEventListener('touchend', handleEnd);
+        }
+
+        let isDragging = false; let previousMousePosition = { x: 0, y: 0 }; let cameraAngle = 0; let cameraHeight = 80;
+        function setupMouseOrbit() {
+            document.addEventListener('mousedown', (e) => { if (e.target.closest('.control-panel')) return; isDragging = true; });
+            document.addEventListener('mouseup', () => isDragging = false);
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging && state.cameraMode === 'GAME') {
+                    const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
+                    cameraAngle -= deltaMove.x * 0.01; cameraHeight += deltaMove.y * 0.2;
+                    cameraHeight = Math.max(10, Math.min(250, cameraHeight)); updateCameraPosition();
+                }
+                previousMousePosition = { x: e.offsetX, y: e.offsetY };
+            });
+        }
+        function updateCameraPosition() {
+            const radius = 280; camera.position.x = radius * Math.sin(cameraAngle);
+            camera.position.z = radius * Math.cos(cameraAngle); camera.position.y = cameraHeight;
+            camera.lookAt(0, 20, 0);
+        }
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-
-        window.addEventListener('resize', resizeRenderer);
-
-        // Fullscreen toggle
-        document.addEventListener('keydown', (e) => {
-            if (e.key && e.key.toLowerCase() === 'f') {
-                if (!document.fullscreenElement) {
-                    renderer.domElement.requestFullscreen().catch(() => { });
-                } else {
-                    document.exitFullscreen().catch(() => { });
-                }
-            }
+        loadAssets(() => {
+            init();
         });
-
-        document.addEventListener('fullscreenchange', resizeRenderer);
-
-        window.advanceTime = (ms) => {
-            const step = 1 / 60;
-            const steps = Math.max(1, Math.round((ms / 1000) / step));
-            for (let i = 0; i < steps; i++) update(step);
-            render();
-        };
-
-        function renderGameToText() {
-            const payload = {
-                mode: clawState,
-                coords: 'x right, y up, z toward camera',
-                clawReady,
-                slipRisk: Number(currentSlipRisk.toFixed(3)),
-                claw: {
-                    x: Number(clawGroup.position.x.toFixed(2)),
-                    y: Number(clawGroup.position.y.toFixed(2)),
-                    z: Number(clawGroup.position.z.toFixed(2)),
-                    grabbed: grabbed ? true : false,
-                    grabQuality: grabbed ? Number((grabbed.userData.gripQuality ?? 0).toFixed(2)) : 0,
-                    slipRisk: Number(currentSlipRisk.toFixed(3)),
-                    clawReady
-                },
-                counts: {
-                    prizeCount,
-                    freeTurns,
-                    turns,
-                    credits,
-                    tickets
-                },
-                lights: { mode: lights.mode },
-                balls: balls.map(b => ({ x: Number(b.position.x.toFixed(2)), y: Number(b.position.y.toFixed(2)), z: Number(b.position.z.toFixed(2)) })),
-                prizes: prizes.filter(p => p.parent).map(p => ({ x: Number(p.position.x.toFixed(2)), y: Number(p.position.y.toFixed(2)), z: Number(p.position.z.toFixed(2)) })),
-                catalogVisible: false,
-                viewport: { w: window.innerWidth, h: window.innerHeight },
-                fullscreen: !!document.fullscreenElement,
-                testMode
-            };
-            return JSON.stringify(payload);
-        }
-
-        window.render_game_to_text = renderGameToText;
-
-        animate();
-        updateUI();
     </script>
 </body>
 
