@@ -277,6 +277,14 @@
         }
 
         function loadAssets(onComplete) {
+            if (typeof THREE === 'undefined') {
+                debugLog("Error: THREE is undefined");
+                return;
+            }
+            if (!THREE.GLTFLoader) {
+                debugLog("Error: THREE.GLTFLoader is missing. Check internet/CDN.");
+                return;
+            }
             const loader = new THREE.GLTFLoader();
             let itemsToLoad = 1 + prizeFiles.length; // Claw + prizes
             let itemsLoaded = 0;
@@ -1082,7 +1090,6 @@
                 if (soundManager) soundManager.playArcadeStart();
             }
         }
-        }
 
         // --- Camera Animation State Machine ---
         let camTargetPos = new THREE.Vector3(0, 80, 280);
@@ -1497,9 +1504,21 @@
             camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-        loadAssets(() => {
-            init();
-        });
+        try {
+            loadAssets(() => {
+                try {
+                    init();
+                } catch (e) {
+                    const el = document.getElementById('debug-overlay');
+                    if (el) el.innerHTML += '<br>CRITICAL INIT ERROR: ' + e.message;
+                    console.error(e);
+                }
+            });
+        } catch (e) {
+            const el = document.getElementById('debug-overlay');
+            if (el) el.innerHTML += '<br>CRITICAL STARTUP ERROR: ' + e.message;
+            console.error(e);
+        }
     </script>
 </body>
 
