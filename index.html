@@ -550,36 +550,8 @@
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // Neighboring Arcade Machines (Low Poly)
-            const cabGeo = new THREE.BoxGeometry(70, 160, 70);
-            const positions = [
-                { x: -120, z: 20, color: 0xff00ff, rot: 0.2 }, // Magenta machine left
-                { x: 120, z: 20, color: 0x00ffff, rot: -0.2 }, // Cyan machine right
-                { x: -90, z: -100, color: 0x00ff00, rot: 0.1 }, // Lime back left
-                { x: 90, z: -100, color: 0xffaa00, rot: -0.1 }, // Amber back right
-                { x: 0, z: -150, color: 0xff0000, rot: 0 } // Red far back
-            ];
-
-            positions.forEach(p => {
-                const cab = new THREE.Mesh(cabGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 }));
-                cab.position.set(p.x, CONFIG.floorY + 80, p.z);
-                cab.rotation.y = p.rot;
-                scene.add(cab);
-
-                // Glow Screen
-                const screen = new THREE.Mesh(new THREE.PlaneGeometry(50, 40), new THREE.MeshBasicMaterial({ color: p.color }));
-                screen.position.set(0, 20, 36);
-                cab.add(screen);
-
-                // Glow Marquee
-                const marq = new THREE.Mesh(new THREE.PlaneGeometry(50, 15), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-                marq.position.set(0, 60, 36);
-                cab.add(marq);
-
-                const light = new THREE.PointLight(p.color, 0.5, 100);
-                light.position.set(0, 40, 50);
-                cab.add(light);
-            });
+            // Neighboring Arcade Machines REMOVED per user request
+            // (Code deleted to clean up scene)
 
             // Load Background Couch Prop
             const loader = new THREE.GLTFLoader();
@@ -653,44 +625,82 @@
 
             if (state.status === 'STARTUP') {
                 drawFancyText(ctx, "SYSTEM INITIALIZING...", w / 2, h / 2);
-            } else if (marqueeState.mode === 'SCROLL') {
-                // Unified Scrolling Logic
+            } else {
+                // Unified Scrolling for ALL modes (SCROLL, WIN, LOSS)
                 ctx.textAlign = 'left';
-                marqueeState.offset += 2;
 
-                const text = marqueeState.fullTextString;
-                const textWidth = ctx.measureText(text).width;
+                let speed = 2; // Default speed
+                let text = marqueeState.fullTextString;
 
-                // Wrap logic
-                if (marqueeState.offset > textWidth) {
+                if (marqueeState.mode === 'WIN' || marqueeState.mode === 'LOSS') {
+                    // Check timeout
+                    if (time > marqueeState.eventEndTime) {
+                        marqueeState.mode = 'SCROLL';
+                    } else {
+                        speed = 6; // FAST SCROLL
+                        // Construct repeated text for the event message
+                        const msg = marqueeState.overrideText + "     ***     ";
+                        // Repeat it enough to behave like the full string
+                        text = msg.repeat(10);
+                    }
+                }
+
+                marqueeState.offset += speed;
+                const textWidth = ctx.measureText(text).width; // Approx for wrap logic
+                // Note: measureText might be slow on huge strings, but simple wrap logic:
+                // We'll just wrap based on a large arbitrary number or let it flow if we constructed a long enough string.
+                // For the main scroll, fullTextString is long.
+
+                // Better wrap logic for infinite scroll:
+                // We need to draw the string at -offset.
+                // If offset > single_repetition_width, reset offset.
+                // But fullTextString is already likely long.
+                // Let's stick to the previous simple wrap:
+                if (marqueeState.offset > 4000) { // arbitrary reset point, or calculate actual width
                     marqueeState.offset = 0;
                 }
 
-                // Draw text repeated enough times to fill canvas
+                // Since we might have different texts, we need to ensure continuity. 
+                // Getting exact width of "repeating unit" is best.
+                // For SCROLL mode: unit is fullTextString (already repeated?). 
+                // Actually fullTextString was joined. 
+
+                // Let's simplify: Just draw the text at x and x + width.
+                // We need the width of the *visible block* to loop it.
+
+                let loopWidth = 0;
+                if (marqueeState.mode === 'SCROLL') {
+                    loopWidth = ctx.measureText(marqueeState.fullTextString).width;
+                } else {
+                    // For WIN/LOSS, we constructed a long string?
+                    // Let's just use the override text + gap as the loop unit.
+                    const unit = marqueeState.overrideText + "     ***     ";
+                    loopWidth = ctx.measureText(unit).width;
+                    text = unit.repeat(20); // Make it long enough to cover screen
+                }
+
+                if (marqueeState.offset > loopWidth) marqueeState.offset %= loopWidth;
+
                 let x = -marqueeState.offset;
-
-                // Draw first copy
                 drawFancyText(ctx, text, x, h / 2);
+                drawFancyText(ctx, text, x + loopWidth * (text.length / (text.length / 20 || 1)), h / 2); // Fallback logic a bit complex here.
 
-                // Draw second copy immediately after
-                drawFancyText(ctx, text, x + textWidth, h / 2);
+                // SIMPLER APPROACH:
+                // Just draw "text" at x. If x + width < canvas_width, draw again at x + width.
+                // But "text" needs to be the repeating unit.
 
-                // If the text is shorter than the canvas (unlikely with this setup but good safety), draw more
-                if (x + textWidth * 2 < w) {
-                    drawFancyText(ctx, text, x + textWidth * 2, h / 2);
-                }
+                // Final robust approach for this block:
+                let unitText = "";
+                if (marqueeState.mode === 'SCROLL') unitText = marqueeState.fullTextString;
+                else unitText = marqueeState.overrideText + "          ***          "; // Gap
 
-            } else {
-                ctx.textAlign = 'center';
-                if (time > marqueeState.eventEndTime) {
-                    marqueeState.mode = 'SCROLL';
-                }
-                if (time - marqueeState.lastBlinkTime > 500) {
-                    marqueeState.blinkVisible = !marqueeState.blinkVisible;
-                    marqueeState.lastBlinkTime = time;
-                }
-                if (marqueeState.blinkVisible) {
-                    drawFancyText(ctx, marqueeState.overrideText, w / 2, h / 2);
+                const unitWidth = ctx.measureText(unitText).width;
+                if (marqueeState.offset > unitWidth) marqueeState.offset %= unitWidth;
+
+                let drawX = -marqueeState.offset;
+                while (drawX < w) {
+                    drawFancyText(ctx, unitText, drawX, h / 2);
+                    drawX += unitWidth;
                 }
             }
 
@@ -830,11 +840,11 @@
             chuteGroup.add(w1, w2, w3, w4);
             const hole = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshBasicMaterial({ color: 0x000000 }));
             hole.position.y = -4; chuteGroup.add(hole);
-            chuteGroup.position.set(-34, CONFIG.floorY + 7, 34); scene.add(chuteGroup);
+            chuteGroup.position.set(-25, CONFIG.floorY + 7, 34); scene.add(chuteGroup);
 
             // Retrieval Box (Below the door)
             const retrievalBox = new THREE.Mesh(new THREE.BoxGeometry(30, 20, 30), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-            retrievalBox.position.set(-34, CONFIG.floorY - 20, 40);
+            retrievalBox.position.set(-25, CONFIG.floorY - 20, 40);
             scene.add(retrievalBox);
 
             const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(40, 30, 2), metalMat); doorFrame.position.set(0, CONFIG.floorY - 20, 50); scene.add(doorFrame);
@@ -983,8 +993,8 @@
                 const model = loadedPrizeModels[key].clone();
 
                 // Random position
-                model.position.x = (Math.random() - 0.5) * 70;
-                model.position.z = (Math.random() - 0.5) * 70;
+                model.position.x = (Math.random() - 0.5) * 60; // Reduced from 70 to avoid wall clipping
+                model.position.z = (Math.random() - 0.5) * 60; // Reduced from 70
                 // Lift them up higher so they don't spawn in the floor
                 model.position.y = CONFIG.floorY + 5 + (Math.random() * 20);
 
