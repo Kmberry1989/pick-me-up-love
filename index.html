@@ -46,6 +46,19 @@
             transition: opacity 0.5s;
         }
 
+        #debug-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: yellow;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            z-index: 10000;
+            pointer-events: none;
+        }
+
         .control-panel {
             background: #2c3e50;
             padding: 20px 40px;
@@ -167,12 +180,26 @@
             pointer-events: none;
             text-align: center;
         }
+
+        #debug-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: yellow;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            z-index: 10000;
+            pointer-events: none;
+        }
     </style>
 </head>
 
 <body>
 
     <div id="fade-overlay"></div>
+    <div id="debug-overlay">Debug Info: Initializing...</div>
 
     <div id="collect-msg">PRIZE WON!<br><span style="font-size:20px">Click to Collect</span></div>
 
@@ -243,6 +270,12 @@
             'kristen.glb', 'kyle.glb', 'maia.glb', 'rochelle.glb', 'vickie.glb'
         ];
 
+        function debugLog(msg) {
+            const el = document.getElementById('debug-overlay');
+            if (el) el.innerHTML += '<br>' + msg;
+            console.log(msg);
+        }
+
         function loadAssets(onComplete) {
             const loader = new THREE.GLTFLoader();
             let itemsToLoad = 1 + prizeFiles.length; // Claw + prizes
@@ -250,18 +283,30 @@
 
             function checkDone() {
                 itemsLoaded++;
+                debugLog(`Loaded ${itemsLoaded}/${itemsToLoad} assets`);
                 if (itemsLoaded >= itemsToLoad) onComplete();
             }
 
             // Load Claw
+            // Note: User says claw grabs nothing and hose not attached.
+            // We need to find the "root" of the claw for the hose, and "fingers" for animation.
             loader.load('models/custom_claw.glb', (gltf) => {
                 loadedClawModel = gltf.scene;
-                // Scale adjustment if needed (heuristic)
-                loadedClawModel.scale.set(5, 5, 5);
+                loadedClawModel.scale.set(15, 15, 15); // Increased scale from 5 to 15 based on user report (might be too small)
+
+                debugLog("Claw Loaded. Nodes:");
+                loadedClawModel.traverse(c => {
+                    // debugLog("- " + c.name + " (" + c.type + ")");
+                    // Auto-detect fingers? 
+                    // Looking for 3 objects that might be fingers.
+                    if (c.name.toLowerCase().includes('finger') || c.name.toLowerCase().includes('arm')) {
+                        // Likely a finger
+                    }
+                });
                 checkDone();
             }, undefined, (err) => {
-                console.error("Error loading claw:", err);
-                checkDone(); // Proceed anyway
+                debugLog("Error loading claw: " + err.message);
+                checkDone();
             });
 
             // Load Prizes
@@ -270,7 +315,7 @@
                     loadedPrizeModels[file] = gltf.scene;
                     checkDone();
                 }, undefined, (err) => {
-                    console.error("Error loading prize " + file, err);
+                    debugLog("Error loading " + file + ": " + err.message);
                     checkDone();
                 });
             });
@@ -722,6 +767,20 @@
                     }
                 });
 
+                // Auto-detect fingers for animation
+                fingers = [];
+                clawMesh.traverse(c => {
+                    // Look for likely finger parts
+                    if (c.name.toLowerCase().includes('finger') || c.name.toLowerCase().includes('arm')) {
+                        fingers.push(c);
+                        debugLog("Found finger: " + c.name);
+                    }
+                });
+                if (fingers.length === 0) {
+                    debugLog("No fingers named 'finger' found. Using direct children.");
+                    clawMesh.children.forEach(c => fingers.push(c));
+                }
+
                 clawGroup.add(clawMesh);
             } else {
                 // Fallback (Keep simplified procedural if model fails)
@@ -754,23 +813,50 @@
         }
 
         function spawnPrizes() {
-            const geometries = [
-                new THREE.SphereGeometry(4, 16, 16),
-                new THREE.BoxGeometry(6, 6, 6),
-                new THREE.IcosahedronGeometry(4, 0),
-                new THREE.TorusKnotGeometry(2.5, 0.8, 64, 8)
-            ];
-            const colors = [0xe74c3c, 0x3498db, 0xf1c40f, 0x9b59b6, 0x2ecc71, 0xff7675, 0x00cec9];
-            for (let i = 0; i < 35; i++) {
-                const geo = geometries[Math.floor(Math.random() * geometries.length)];
-                const mat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)], roughness: 0.4, metalness: 0.1 });
-                const prize = new THREE.Mesh(geo, mat);
-                prize.position.x = (Math.random() - 0.5) * 80;
-                prize.position.z = (Math.random() - 0.5) * 80;
-                prize.position.y = CONFIG.floorY + 4 + (Math.random() * 8);
-                prize.castShadow = true; prize.receiveShadow = true;
-                prize.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-                scene.add(prize); prizes.push(prize);
+            if (Object.keys(loadedPrizeModels).length === 0) {
+                // Fallback if no models loaded (shouldn't happen with updated init)
+                debugLog("No prize models loaded!");
+                return;
+            }
+
+            const availableKeys = Object.keys(loadedPrizeModels);
+            debugLog(`Spawning 60 prizes from ${availableKeys.length} templates...`);
+
+            // Spawn 60 prizes
+            for (let i = 0; i < 60; i++) {
+                const key = availableKeys[Math.floor(Math.random() * availableKeys.length)];
+                const model = loadedPrizeModels[key].clone();
+
+                // Random position
+                model.position.x = (Math.random() - 0.5) * 70;
+                model.position.z = (Math.random() - 0.5) * 70;
+                // Lift them up higher so they don't spawn in the floor
+                model.position.y = CONFIG.floorY + 5 + (Math.random() * 20);
+
+                // Random rotation
+                model.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+
+                // Scale - Prizes might need scaling, let's assume 30x based on typical GLB units vs game units
+                model.scale.set(30, 30, 30);
+
+                // Shadows
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                scene.add(model);
+                prizes.push(model);
+            }
+        }
+        prize.position.x = (Math.random() - 0.5) * 80;
+        prize.position.z = (Math.random() - 0.5) * 80;
+        prize.position.y = CONFIG.floorY + 4 + (Math.random() * 8);
+        prize.castShadow = true; prize.receiveShadow = true;
+        prize.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        scene.add(prize); prizes.push(prize);
             }
         }
 
@@ -981,12 +1067,16 @@
             clawGroup.rotation.z = -(state.gantryX - state.clawPos.x) * 0.08;
             clawGroup.rotation.x = (state.gantryZ - state.clawPos.z) * 0.08;
 
-            const topY = 80; const hookOffset = 7; const clawTopY = state.clawY + hookOffset;
+            const topY = 80;
+            const hookOffset = 18; // Adjusted to reach top of claw model
+            const clawTopY = state.clawY + hookOffset;
+
             const anchorVec = new THREE.Vector3(state.gantryX, topY, state.gantryZ);
             const clawVec = new THREE.Vector3(state.clawPos.x, clawTopY, state.clawPos.z);
             ropeMesh.position.copy(anchorVec); ropeMesh.lookAt(clawVec); ropeMesh.scale.z = anchorVec.distanceTo(clawVec);
+
             const coilAnchor = anchorVec.clone().add(new THREE.Vector3(3, 0, 3));
-            const coilClaw = clawVec.clone().add(new THREE.Vector3(3, 0, 3));
+            const coilClaw = clawVec.clone().add(new THREE.Vector3(3, 10, 3));
             coilMesh.position.copy(coilAnchor); coilMesh.lookAt(coilClaw);
             coilMesh.scale.set(1, 1, Math.max(0.1, coilAnchor.distanceTo(coilClaw) / 20));
 
@@ -1066,7 +1156,15 @@
             updateMarquee();
             const targetAngle = state.clawOpen ? 0.3 : -0.2;
             fingers.forEach(f => {
-                if (f.children[1]) f.children[1].rotation.z += (targetAngle - f.children[1].rotation.z) * 0.1;
+                if (f.children && f.children[1]) {
+                    // Procedural claw structure
+                    f.children[1].rotation.z += (targetAngle - f.children[1].rotation.z) * 0.1;
+                } else {
+                    // Imported GLB logic (Try rotating the node itself)
+                    // Adjust axis/angle scaling if needed. 
+                    // Assuming Z-axis rotation is appropriate for these fingers.
+                    f.rotation.z += (targetAngle - f.rotation.z) * 0.1;
+                }
             });
             renderer.render(scene, camera);
         }
