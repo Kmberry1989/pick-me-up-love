@@ -342,6 +342,111 @@
             fullTextString: "" // To store the joined string
         };
 
+        // --- Sound Manager (Procedural Audio) ---
+        class SoundManager {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3; // Low volume default
+                this.masterGain.connect(this.ctx.destination);
+
+                this.motorOsc = null;
+                this.motorGain = null;
+                this.isMotorPlaying = false;
+            }
+
+            resume() {
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playBeep(freq = 440, type = 'sine', duration = 0.1) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playArcadeStart() {
+                this.playBeep(660, 'square', 0.1);
+                setTimeout(() => this.playBeep(880, 'square', 0.2), 100);
+            }
+
+            playMotor(playing) {
+                if (playing && !this.isMotorPlaying) {
+                    this.isMotorPlaying = true;
+                    this.motorOsc = this.ctx.createOscillator();
+                    this.motorGain = this.ctx.createGain();
+                    this.motorOsc.type = 'sawtooth';
+                    this.motorOsc.frequency.setValueAtTime(50, this.ctx.currentTime); // Low hum
+                    this.motorGain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+
+                    // Filter to muffle it
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 200;
+
+                    this.motorOsc.connect(filter);
+                    filter.connect(this.motorGain);
+                    this.motorGain.connect(this.masterGain);
+                    this.motorOsc.start();
+                } else if (!playing && this.isMotorPlaying) {
+                    this.isMotorPlaying = false;
+                    if (this.motorOsc) {
+                        const stopTime = this.ctx.currentTime + 0.2;
+                        this.motorGain.gain.linearRampToValueAtTime(0, stopTime);
+                        this.motorOsc.stop(stopTime);
+                        this.motorOsc = null;
+                    }
+                }
+            }
+
+            playWin() {
+                // Arpeggio
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C Major
+                notes.forEach((freq, i) => {
+                    setTimeout(() => this.playBeep(freq, 'triangle', 0.3), i * 150);
+                });
+                setTimeout(() => this.playApplause(), 600);
+            }
+
+            playApplause() {
+                const duration = 2.0;
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.5; // White noise
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = this.ctx.createGain();
+
+                // Filter for "clapping" sound (bandpass)
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1000;
+
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                noise.start();
+            }
+        }
+
+        let soundManager;
+
         // --- Initialization ---
         function init() {
             scene = new THREE.Scene();
@@ -364,10 +469,14 @@
             document.body.appendChild(renderer.domElement);
 
             // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Increased from 0.2
             scene.add(ambientLight);
 
-            const spotLight = new THREE.SpotLight(0xfffae0, 0.8);
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            hemiLight.position.set(0, 200, 0);
+            scene.add(hemiLight);
+
+            const spotLight = new THREE.SpotLight(0xfffae0, 1.5); // Increased from 0.8
             spotLight.position.set(0, 200, 100);
             spotLight.angle = Math.PI / 4;
             spotLight.penumbra = 0.5;
@@ -376,7 +485,7 @@
             spotLight.shadow.mapSize.height = 2048;
             scene.add(spotLight);
 
-            const internalLight = new THREE.PointLight(0xffffff, 0.8, 200);
+            const internalLight = new THREE.PointLight(0xffffff, 1.2, 200); // Increased from 0.8
             internalLight.position.set(0, 85, 0);
             scene.add(internalLight);
 
@@ -394,6 +503,15 @@
             buildLEDs();
             buildGantry();
             spawnPrizes();
+
+            soundManager = new SoundManager();
+            window.addEventListener('click', () => {
+                soundManager.resume();
+            }, { once: true });
+
+            window.addEventListener('keydown', () => {
+                soundManager.resume();
+            }, { once: true });
 
             window.addEventListener('resize', onResize, false);
             setupInputListeners();
@@ -450,10 +568,28 @@
                 marq.position.set(0, 60, 36);
                 cab.add(marq);
 
-                // Ambient light casting from machine
                 const light = new THREE.PointLight(p.color, 0.5, 100);
                 light.position.set(0, 40, 50);
                 cab.add(light);
+            });
+
+            // Load Background Couch Prop
+            const loader = new THREE.GLTFLoader();
+            loader.load('models/props/couch.glb', (gltf) => {
+                const couch = gltf.scene;
+                couch.position.set(0, CONFIG.floorY, -200);
+                couch.scale.set(40, 40, 40);
+                couch.rotation.y = 0; // Face forward? Or back? Try 0 first
+
+                couch.traverse((c) => {
+                    if (c.isMesh) {
+                        c.castShadow = true;
+                        c.receiveShadow = true;
+                    }
+                });
+                scene.add(couch);
+            }, undefined, (e) => {
+                debugLog("Failed to load couch: " + e);
             });
         }
 
@@ -567,8 +703,10 @@
             marqueeState.eventEndTime = Date.now() + 5000;
             if (type === 'WIN') {
                 marqueeState.overrideText = wins[Math.floor(Math.random() * wins.length)];
+                if (soundManager) soundManager.playWin();
             } else {
                 marqueeState.overrideText = loss[Math.floor(Math.random() * loss.length)];
+                if (soundManager) soundManager.playBeep(150, 'sawtooth', 0.5); // Sad beep
             }
         }
 
@@ -677,10 +815,10 @@
             // Prize Chute & Retrieval Bin
             const chuteGroup = new THREE.Group();
             const wallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-            const w1 = new THREE.Mesh(new THREE.BoxGeometry(32, 10, 2), wallMat); w1.position.z = -16;
-            const w2 = new THREE.Mesh(new THREE.BoxGeometry(32, 10, 2), wallMat); w2.position.z = 16;
-            const w3 = new THREE.Mesh(new THREE.BoxGeometry(2, 10, 32), wallMat); w3.position.x = 16;
-            const w4 = new THREE.Mesh(new THREE.BoxGeometry(2, 10, 32), wallMat); w4.position.x = -16;
+            const w1 = new THREE.Mesh(new THREE.BoxGeometry(32, 30, 2), wallMat); w1.position.z = -16;
+            const w2 = new THREE.Mesh(new THREE.BoxGeometry(32, 30, 2), wallMat); w2.position.z = 16;
+            const w3 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 32), wallMat); w3.position.x = 16;
+            const w4 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 32), wallMat); w4.position.x = -16;
             chuteGroup.add(w1, w2, w3, w4);
             const hole = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshBasicMaterial({ color: 0x000000 }));
             hole.position.y = -4; chuteGroup.add(hole);
@@ -758,6 +896,7 @@
                 // Adjust position/rotation to fit the rope connection point
                 clawMesh.position.y = -5;
                 clawMesh.rotation.y = Math.PI / 2; // Adjust if needed
+                clawMesh.scale.set(7.5, 7.5, 7.5); // Reduced size
 
                 // Enable Shadows
                 clawMesh.traverse((c) => {
@@ -770,16 +909,23 @@
                 // Auto-detect fingers for animation
                 fingers = [];
                 clawMesh.traverse(c => {
-                    // Look for likely finger parts
-                    if (c.name.toLowerCase().includes('finger') || c.name.toLowerCase().includes('arm')) {
+                    if (c.name.includes('Finger') || c.name.includes('finger')) {
                         fingers.push(c);
-                        debugLog("Found finger: " + c.name);
                     }
                 });
+
+                // Fallback if no specific finger nodes found
                 if (fingers.length === 0) {
-                    debugLog("No fingers named 'finger' found. Using direct children.");
                     clawMesh.children.forEach(c => fingers.push(c));
                 }
+
+                // Sort and assign axes
+                fingers.sort((a, b) => a.name.localeCompare(b.name));
+                fingers.forEach((child, i) => {
+                    const angle = i * (Math.PI * 2 / 3);
+                    child.userData.axis = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle)).normalize();
+                    child.userData.currentAngle = 0;
+                });
 
                 clawGroup.add(clawMesh);
             } else {
@@ -814,17 +960,18 @@
 
         function spawnPrizes() {
             if (Object.keys(loadedPrizeModels).length === 0) {
-                // Fallback if no models loaded (shouldn't happen with updated init)
                 debugLog("No prize models loaded!");
                 return;
             }
 
-            const availableKeys = Object.keys(loadedPrizeModels);
-            debugLog(`Spawning 60 prizes from ${availableKeys.length} templates...`);
+            let availableKeys = Object.keys(loadedPrizeModels);
+            debugLog(`Spawning ${availableKeys.length} unique prizes...`);
 
-            // Spawn 60 prizes
-            for (let i = 0; i < 60; i++) {
-                const key = availableKeys[Math.floor(Math.random() * availableKeys.length)];
+            // Shuffle
+            availableKeys.sort(() => Math.random() - 0.5);
+
+            // Spawn one of each
+            availableKeys.forEach(key => {
                 const model = loadedPrizeModels[key].clone();
 
                 // Random position
@@ -849,16 +996,9 @@
 
                 scene.add(model);
                 prizes.push(model);
-            }
+            });
         }
-        prize.position.x = (Math.random() - 0.5) * 80;
-        prize.position.z = (Math.random() - 0.5) * 80;
-        prize.position.y = CONFIG.floorY + 4 + (Math.random() * 8);
-        prize.castShadow = true; prize.receiveShadow = true;
-        prize.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        scene.add(prize); prizes.push(prize);
-            }
-        }
+
 
         // --- Confetti System ---
         function createConfetti() {
@@ -932,13 +1072,16 @@
                 updateCreditDisplay();
                 state.status = 'DROPPING';
                 state.dropTargetY = CONFIG.floorY + 5;
+                if (soundManager) soundManager.playArcadeStart();
             } else if (state.credits <= 0) {
                 // Auto replenish for free play feel if button removed
                 state.credits = 1;
                 updateCreditDisplay();
                 state.status = 'DROPPING';
                 state.dropTargetY = CONFIG.floorY + 5;
+                if (soundManager) soundManager.playArcadeStart();
             }
+        }
         }
 
         // --- Camera Animation State Machine ---
@@ -986,12 +1129,38 @@
             }
         }
 
-        // Handle clicks for return
-        window.addEventListener('mousedown', () => {
+        // Interactive Prize Rotation
+        let isDraggingPrize = false;
+        let prizeRotationVelocity = 0;
+        let lastMouseX = 0;
+
+        window.addEventListener('mousedown', (e) => {
+            if (state.cameraMode === 'PRIZE_VIEW') {
+                isDraggingPrize = true;
+                lastMouseX = e.clientX;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (state.cameraMode === 'PRIZE_VIEW' && isDraggingPrize && state.wonPrize) {
+                const delta = e.clientX - lastMouseX;
+                state.wonPrize.rotation.y += delta * 0.01;
+                prizeRotationVelocity = delta * 0.01;
+                lastMouseX = e.clientX;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (state.cameraMode === 'PRIZE_VIEW') {
+                isDraggingPrize = false;
+            }
+        });
+
+        // Click to collect (Only if not dragging)
+        document.getElementById('collect-msg').addEventListener('click', () => {
             if (state.cameraMode === 'PRIZE_VIEW') {
                 state.cameraMode = 'TRANSITION_TO_GAME';
                 document.getElementById('collect-msg').style.display = 'none';
-                // Remove prize
                 if (state.wonPrize) {
                     scene.remove(state.wonPrize);
                     state.wonPrize = null;
@@ -1001,7 +1170,23 @@
 
         function updatePhysics() {
             updateParticles();
+            // ... (rest of function)
+
+            // PRIZE VIEW INERTIA
+            if (state.cameraMode === 'PRIZE_VIEW' && state.wonPrize && !isDraggingPrize) {
+                state.wonPrize.rotation.y += prizeRotationVelocity;
+                prizeRotationVelocity *= 0.95; // Damping
+            }
+
             updateCameraLogic();
+
+            // -- MOTOR SOUND LOGIC --
+            const isMoving = (state.status === 'MOVING' || state.status === 'DROPPING' || state.status === 'LIFTING' || state.status === 'RETURNING' || state.status === 'RESETTING');
+            const isManualMoving = (state.status === 'IDLE' && (playerInput.up || playerInput.down || playerInput.left || playerInput.right));
+
+            if (soundManager) {
+                soundManager.playMotor(isMoving || isManualMoving);
+            }
 
             // -- MOVEMENT CONTROLLER --
             if (state.status === 'STARTUP') {
@@ -1051,6 +1236,46 @@
 
             if (state.status === 'DROPPING') {
                 state.clawY -= CONFIG.dropSpeed;
+
+                // 1. Floor Collision
+                // Stop slightly above floor to avoid clipping
+                const floorLimit = CONFIG.floorY + 8;
+                if (state.clawY <= floorLimit) {
+                    state.clawY = floorLimit;
+                    state.status = 'GRABBING';
+                    setTimeout(closeClaw, 1000);
+                    return;
+                }
+
+                // 2. Prize Collision
+                // Check if we hit any prize
+                // Approximate claw touch width and height
+                const hitRadius = 8;
+                const clawBottom = state.clawY;
+
+                for (let p of prizes) {
+                    // Simple box/sphere check
+                    const dx = state.clawPos.x - p.position.x;
+                    const dz = state.clawPos.z - p.position.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist < hitRadius) {
+                        // Horizontal hit, check vertical
+                        // Prize top approximation (y + scale/size)
+                        // Prizes are scaled 30x, typical GLB center is 0.
+                        // Let's assume top is y + 5 (roughly)
+                        const prizeTop = p.position.y + 5;
+
+                        if (clawBottom <= prizeTop && clawBottom > p.position.y - 5) {
+                            // Hit!
+                            state.clawY = prizeTop;
+                            state.status = 'GRABBING';
+                            setTimeout(closeClaw, 1000);
+                            return;
+                        }
+                    }
+                }
+
                 if (state.clawY <= state.dropTargetY) { state.status = 'GRABBING'; setTimeout(closeClaw, 1000); }
             } else if (state.status === 'LIFTING') {
                 state.clawY += CONFIG.clawSpeed;
@@ -1068,7 +1293,7 @@
             clawGroup.rotation.x = (state.gantryZ - state.clawPos.z) * 0.08;
 
             const topY = 80;
-            const hookOffset = 18; // Adjusted to reach top of claw model
+            const hookOffset = 9; // Adjusted for smaller claw (was 18)
             const clawTopY = state.clawY + hookOffset;
 
             const anchorVec = new THREE.Vector3(state.gantryX, topY, state.gantryZ);
@@ -1076,15 +1301,23 @@
             ropeMesh.position.copy(anchorVec); ropeMesh.lookAt(clawVec); ropeMesh.scale.z = anchorVec.distanceTo(clawVec);
 
             const coilAnchor = anchorVec.clone().add(new THREE.Vector3(3, 0, 3));
-            const coilClaw = clawVec.clone().add(new THREE.Vector3(3, 10, 3));
+            const coilClaw = clawVec.clone().add(new THREE.Vector3(3, 5, 3));
             coilMesh.position.copy(coilAnchor); coilMesh.lookAt(coilClaw);
             coilMesh.scale.set(1, 1, Math.max(0.1, coilAnchor.distanceTo(coilClaw) / 20));
 
             if (state.heldPrize) {
-                state.heldPrize.position.set(state.clawPos.x, state.clawY - 8, state.clawPos.z);
+                state.heldPrize.position.set(state.clawPos.x, state.clawY - 25, state.clawPos.z);
+
+                // Squishy Physics
+                const t = Date.now() * 0.005;
+                const squish = Math.sin(t) * 0.1; // +/- 10%
+                // Y compressed (25-30), X/Z bulged (30-35)
+                state.heldPrize.scale.set(30 * (1 + squish), 30 * (1 - squish), 30 * (1 + squish));
+
                 state.heldPrize.rotation.z = clawGroup.rotation.z;
                 state.heldPrize.rotation.x = clawGroup.rotation.x + (Date.now() * 0.001);
             } else if (state.wonPrize && state.status === 'WIN_SEQUENCE') {
+                state.wonPrize.scale.set(30, 30, 30); // Restore scale
                 // Animate drop into bin
                 if (state.wonPrize.position.y > CONFIG.floorY - 15) {
                     state.wonPrize.position.y -= 1.0; // Fall
@@ -1154,16 +1387,22 @@
             updatePhysics();
             updateLEDs();
             updateMarquee();
-            const targetAngle = state.clawOpen ? 0.3 : -0.2;
+            // Animate Fingers
+            // 0 = Open, 0.4 = Closed (Adjust based on model)
+            const targetFingerAngle = state.clawOpen ? 0 : 0.4;
+
             fingers.forEach(f => {
-                if (f.children && f.children[1]) {
-                    // Procedural claw structure
-                    f.children[1].rotation.z += (targetAngle - f.children[1].rotation.z) * 0.1;
+                if (f.userData.currentAngle === undefined) f.userData.currentAngle = 0;
+
+                // Smoothly interpolate angle
+                f.userData.currentAngle += (targetFingerAngle - f.userData.currentAngle) * 0.1;
+
+                // Apply rotation
+                if (f.userData.axis) {
+                    f.quaternion.setFromAxisAngle(f.userData.axis, f.userData.currentAngle);
                 } else {
-                    // Imported GLB logic (Try rotating the node itself)
-                    // Adjust axis/angle scaling if needed. 
-                    // Assuming Z-axis rotation is appropriate for these fingers.
-                    f.rotation.z += (targetAngle - f.rotation.z) * 0.1;
+                    // Fallback
+                    f.rotation.z = f.userData.currentAngle;
                 }
             });
             renderer.render(scene, camera);
