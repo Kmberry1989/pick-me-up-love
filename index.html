@@ -967,7 +967,7 @@
                 }
             }
             const path = new HelixCurve(); const tubeGeo = new THREE.TubeGeometry(path, 128, 0.15, 6, false);
-            const coilContainer = new THREE.Group(); tubeGeo.rotateX(-Math.PI / 2); tubeGeo.translate(0, 0, 10);
+            const coilContainer = new THREE.Group(); tubeGeo.rotateX(-Math.PI / 2); // Removed translate(0,0,10)
             const coilBody = new THREE.Mesh(tubeGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
             coilContainer.add(coilBody); coilMesh = coilContainer; scene.add(coilMesh);
 
