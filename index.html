@@ -177,8 +177,13 @@
             font-weight: bold;
             text-shadow: 0 0 20px #e74c3c;
             display: none;
-            pointer-events: none;
+            pointer-events: auto;
+            /* Enable clicking */
             text-align: center;
+            cursor: pointer;
+            /* Show hand cursor */
+            z-index: 2000;
+            /* Ensure on top */
         }
 
         #debug-overlay {
@@ -458,8 +463,8 @@
         // --- Initialization ---
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050510); // Deep arcade blue/black
-            scene.fog = new THREE.Fog(0x050510, 200, 600); // Blend distant machines
+            scene.background = new THREE.Color(0xdae6f0); // Bright Pastel Blue
+            scene.fog = new THREE.Fog(0xdae6f0, 300, 900); // Airy fog
 
             camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
             updateCameraPosition(); // Set initial pos
@@ -477,14 +482,14 @@
             document.body.appendChild(renderer.domElement);
 
             // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Increased from 0.2
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Increased to 0.8
             scene.add(ambientLight);
 
-            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbbb, 0.8); // Brighter ground
             hemiLight.position.set(0, 200, 0);
             scene.add(hemiLight);
 
-            const spotLight = new THREE.SpotLight(0xfffae0, 1.5); // Increased from 0.8
+            const spotLight = new THREE.SpotLight(0xfffae0, 1.5);
             spotLight.position.set(0, 200, 100);
             spotLight.angle = Math.PI / 4;
             spotLight.penumbra = 0.5;
@@ -493,7 +498,7 @@
             spotLight.shadow.mapSize.height = 2048;
             scene.add(spotLight);
 
-            const internalLight = new THREE.PointLight(0xffffff, 1.2, 200); // Increased from 0.8
+            const internalLight = new THREE.PointLight(0xffffff, 1.2, 200);
             internalLight.position.set(0, 85, 0);
             scene.add(internalLight);
 
@@ -537,18 +542,25 @@
         }
 
         function buildArcadeRoom() {
-            // Dark floor
+            // Light floor
             const floorGeo = new THREE.PlaneGeometry(1000, 1000);
             const floorMat = new THREE.MeshStandardMaterial({
-                color: 0x050505,
-                roughness: 0.6,
-                metalness: 0.2
+                color: 0xeeeeee, // White/Light Grey
+                roughness: 0.8,
+                metalness: 0.1
             });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.y = CONFIG.floorY - 2;
+            floor.position.y = CONFIG.floorY - 110; // Lowered to reveal base
             floor.receiveShadow = true;
             scene.add(floor);
+
+            // Walls to enclose the space
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.BackSide });
+            const roomGeo = new THREE.BoxGeometry(900, 600, 900);
+            const room = new THREE.Mesh(roomGeo, wallMat);
+            room.position.set(0, 280, 0);
+            scene.add(room);
 
             // Neighboring Arcade Machines REMOVED per user request
             // (Code deleted to clean up scene)
@@ -850,6 +862,43 @@
             const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(40, 30, 2), metalMat); doorFrame.position.set(0, CONFIG.floorY - 20, 50); scene.add(doorFrame);
             const doorFlap = new THREE.Mesh(new THREE.BoxGeometry(34, 24, 2), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8 }));
             doorFlap.position.set(0, CONFIG.floorY - 20, 51); doorFlap.rotation.x = -0.2; scene.add(doorFlap);
+
+            // --- LOWER CABINET (Base) ---
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0xff4757, roughness: 0.4 }); // Match metal/accent color
+            const baseBody = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.cabinetWidth, 100, CONFIG.cabinetDepth), baseMat);
+            baseBody.position.set(0, CONFIG.floorY - 50, 0); // Extend down from floor
+            scene.add(baseBody);
+
+            // Control Panel Ledge
+            const ledgeGeo = new THREE.BoxGeometry(CONFIG.cabinetWidth, 10, 30);
+            const ledge = new THREE.Mesh(ledgeGeo, baseMat);
+            ledge.position.set(0, CONFIG.floorY - 5, 60); // Protrude front
+            // ledge.rotation.x = 0.1; // Slight tilt
+            scene.add(ledge);
+
+            // Coin Door Area
+            const coinDoor = new THREE.Mesh(new THREE.PlaneGeometry(40, 50), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            coinDoor.position.set(0, CONFIG.floorY - 50, 50.1); // On front of base
+            scene.add(coinDoor);
+
+            // Coin Slots (Visual)
+            const slotGeo = new THREE.PlaneGeometry(5, 8);
+            const slotMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 });
+            const s1 = new THREE.Mesh(slotGeo, slotMat); s1.position.set(-8, CONFIG.floorY - 45, 50.2); scene.add(s1);
+            const s2 = new THREE.Mesh(slotGeo, slotMat); s2.position.set(8, CONFIG.floorY - 45, 50.2); scene.add(s2);
+
+            // Feet
+            const footGeo = new THREE.CylinderGeometry(5, 5, 10);
+            const footMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const feetPos = [
+                { x: -40, z: -40 }, { x: 40, z: -40 },
+                { x: -40, z: 40 }, { x: 40, z: 40 }
+            ];
+            feetPos.forEach(p => {
+                const foot = new THREE.Mesh(footGeo, footMat);
+                foot.position.set(p.x, CONFIG.floorY - 105, p.z);
+                scene.add(foot);
+            });
         }
 
         function buildGantry() {
@@ -962,12 +1011,12 @@
             class HelixCurve extends THREE.Curve {
                 getPoint(t) {
                     const loops = 12; const angle = t * Math.PI * 2 * loops;
-                    const radius = 0.8; const x = radius * Math.cos(angle); const z = radius * Math.sin(angle); const y = -t * 20;
+                    const radius = 0.8; const x = radius * Math.cos(angle); const z = radius * Math.sin(angle); const y = t * 20; // Positive Y
                     return new THREE.Vector3(x, y, z);
                 }
             }
             const path = new HelixCurve(); const tubeGeo = new THREE.TubeGeometry(path, 128, 0.15, 6, false);
-            const coilContainer = new THREE.Group(); tubeGeo.rotateX(-Math.PI / 2); // Removed translate(0,0,10)
+            const coilContainer = new THREE.Group(); tubeGeo.rotateX(Math.PI / 2); // Align Y to +Z for lookAt scaling
             const coilBody = new THREE.Mesh(tubeGeo, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
             coilContainer.add(coilBody); coilMesh = coilContainer; scene.add(coilMesh);
 
@@ -1089,14 +1138,14 @@
                 state.credits--;
                 updateCreditDisplay();
                 state.status = 'DROPPING';
-                state.dropTargetY = CONFIG.floorY + 5;
+                state.dropTargetY = CONFIG.floorY + 20; // Raised from +5 to prevent floor clipping
                 if (soundManager) soundManager.playArcadeStart();
             } else if (state.credits <= 0) {
                 // Auto replenish for free play feel if button removed
                 state.credits = 1;
                 updateCreditDisplay();
                 state.status = 'DROPPING';
-                state.dropTargetY = CONFIG.floorY + 5;
+                state.dropTargetY = CONFIG.floorY + 20; // Raised from +5
                 if (soundManager) soundManager.playArcadeStart();
             }
         }
@@ -1317,8 +1366,8 @@
             const clawVec = new THREE.Vector3(state.clawPos.x, clawTopY, state.clawPos.z);
             ropeMesh.position.copy(anchorVec); ropeMesh.lookAt(clawVec); ropeMesh.scale.z = anchorVec.distanceTo(clawVec);
 
-            const coilAnchor = anchorVec.clone().add(new THREE.Vector3(3, 0, 3));
-            const coilClaw = clawVec.clone().add(new THREE.Vector3(3, 5, 3));
+            const coilAnchor = anchorVec.clone().add(new THREE.Vector3(1, 0, 1)); // Reduced from 3
+            const coilClaw = clawVec.clone().add(new THREE.Vector3(1, 2, 1)); // Reduced from 3,5,3 to be closer to hook
             coilMesh.position.copy(coilAnchor); coilMesh.lookAt(coilClaw);
             coilMesh.scale.set(1, 1, Math.max(0.1, coilAnchor.distanceTo(coilClaw) / 20));
 
